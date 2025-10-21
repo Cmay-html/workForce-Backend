@@ -1,5 +1,5 @@
 from ..extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Review(db.Model):
@@ -10,7 +10,7 @@ class Review(db.Model):
     reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     rating = db.Column(db.Integer)
     comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
     def to_dict(self):
         return {

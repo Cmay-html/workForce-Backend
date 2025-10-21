@@ -1,7 +1,7 @@
 from ..extensions import db
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class User(db.Model):
@@ -12,7 +12,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     is_verified = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
 
     # One-to-one relationships to client and freelancer profiles
@@ -49,8 +49,8 @@ class ClientProfile(db.Model):
     bio = db.Column(db.Text)
     website = db.Column(db.String(200))
     profile_picture_uri = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     def to_dict(self):
         return {
@@ -71,13 +71,13 @@ class FreelancerProfile(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    hourly_rate = db.Column(NUMERIC(10, 2))
+    hourly_rate = db.Column(db.Numeric(10, 2))
     bio = db.Column(db.Text)
     experience = db.Column(db.Text)
     portfolio_links = db.Column(db.Text)
     profile_picture_uri = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     # many-to-many with skills will be defined in skill models
 

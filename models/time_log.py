@@ -1,5 +1,5 @@
 from ..extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class TimeLog(db.Model):
