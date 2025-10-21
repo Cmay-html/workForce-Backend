@@ -1,4 +1,4 @@
-from ..extensions import db
+from extensions import db
 from sqlalchemy.dialects.postgresql import NUMERIC
 from datetime import datetime, timezone
 

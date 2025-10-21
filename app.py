@@ -1,13 +1,19 @@
 from flask import Flask
-from flask_marshmallow import Marshmallow
-from marshmallow import schema
+from flask_restx import Api
 from extensions import db
-
-app = Flask(__name__)
-ma = Marshmallow(app)
-db.init_app(app)
-
+from flask_cors import CORS
+from flask_migrate import Migrate
+from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, TimeLog, User, FreelancerProfile, ClientProfile
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+def create_app(config):
+    app = Flask(__name__)
+    app.config.from_object(config)
+    db.init_app(app)
+    CORS(app)
+
+    migrate = Migrate(app, db)
+
+    api = Api(app, doc="/docs")
+
+    return app
