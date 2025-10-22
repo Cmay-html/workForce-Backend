@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 
 freelancer_ns = Namespace('freelancers', description='Freelancer Profile operations')
 
-# -----------------------------
+
 # RESTX Model
-# -----------------------------
+
 freelancer_model = freelancer_ns.model('FreelancerProfile', {
     'id': fields.Integer(readonly=True),
     'user_id': fields.Integer(required=True),
