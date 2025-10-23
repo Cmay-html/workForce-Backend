@@ -1,198 +1,221 @@
-
-
 from flask_restx import Namespace, Resource, fields
 from flask import request
 from extensions import db
 from models import Application, TimeEntry, Deliverable, Invoice, Payment
 from datetime import datetime, timezone
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from http import HTTPStatus
 
-# -----------------------------
-# Namespace
-# -----------------------------
-freelancer_ns = Namespace('freelancer', description='Freelancer APIs')
+# Define the Freelance namespace
+freelance_ns = Namespace('freelance', description='Freelancer journey operations')
 
-# -----------------------------
-# Models for RESTX
-# -----------------------------
-application_model = freelancer_ns.model('Application', {
-    'id': fields.Integer(readonly=True),
-    'title': fields.String(required=True),
-    'description': fields.String(required=True),
-    'status': fields.String(description='Application status')
+# Define input/output models for validation and Swagger documentation
+application_model = freelance_ns.model('Application', {
+    'job_id': fields.Integer(required=True, description='Job ID'),
+    'freelancer_id': fields.Integer(required=True, description='Freelancer ID'),
+    'cover_letter': fields.String(description='Cover letter'),
+    'proposed_rate': fields.Float(description='Proposed hourly rate'),
+    'status': fields.String(enum=['pending', 'accepted', 'rejected'], description='Application status')
 })
 
-time_entry_model = freelancer_ns.model('TimeEntry', {
-    'id': fields.Integer(readonly=True),
-    'project_id': fields.Integer(required=True),
-    'hours': fields.Float(required=True),
-    'description': fields.String,
-    'date': fields.DateTime
+time_entry_model = freelance_ns.model('TimeEntry', {
+    'job_id': fields.Integer(required=True, description='Job ID'),
+    'freelancer_id': fields.Integer(required=True, description='Freelancer ID'),
+    'hours_worked': fields.Float(required=True, description='Hours worked'),
+    'date': fields.Date(required=True, description='Date of work'),
+    'description': fields.String(description='Work description')
 })
 
-deliverable_model = freelancer_ns.model('Deliverable', {
-    'id': fields.Integer(readonly=True),
-    'project_id': fields.Integer(required=True),
-    'title': fields.String(required=True),
-    'file_url': fields.String,
-    'submitted_at': fields.DateTime
+deliverable_model = freelance_ns.model('Deliverable', {
+    'job_id': fields.Integer(required=True, description='Job ID'),
+    'freelancer_id': fields.Integer(required=True, description='Freelancer ID'),
+    'title': fields.String(required=True, description='Deliverable title'),
+    'file_url': fields.String(required=True, description='URL to deliverable file'),
+    'status': fields.String(enum=['submitted', 'reviewed', 'accepted', 'rejected'], description='Deliverable status')
 })
 
-invoice_model = freelancer_ns.model('Invoice', {
-    'id': fields.Integer(readonly=True),
-    'project_id': fields.Integer(required=True),
-    'amount': fields.Float(required=True),
-    'status': fields.String,
-    'created_at': fields.DateTime
+invoice_model = freelance_ns.model('Invoice', {
+    'job_id': fields.Integer(required=True, description='Job ID'),
+    'freelancer_id': fields.Integer(required=True, description='Freelancer ID'),
+    'amount': fields.Float(required=True, description='Invoice amount'),
+    'due_date': fields.Date(required=True, description='Due date'),
+    'status': fields.String(enum=['pending', 'paid', 'overdue'], description='Invoice status')
 })
 
-payment_model = freelancer_ns.model('Payment', {
-    'id': fields.Integer(readonly=True),
-    'invoice_id': fields.Integer(required=True),
-    'amount': fields.Float(required=True),
-    'status': fields.String,
-    'created_at': fields.DateTime
+payment_model = freelance_ns.model('Payment', {
+    'invoice_id': fields.Integer(required=True, description='Invoice ID'),
+    'amount': fields.Float(required=True, description='Payment amount'),
+    'payment_date': fields.Date(required=True, description='Payment date'),
+    'payment_method': fields.String(description='Payment method')
 })
 
-# -----------------------------
-# Applications Endpoints
-# -----------------------------
-@freelancer_ns.route('/applications')
+# Application Management Endpoints
+@freelance_ns.route('/applications')
 class ApplicationList(Resource):
-    @freelancer_ns.marshal_list_with(application_model)
-    def get(self):
-        return Application.query.all(), 200
-
-    @freelancer_ns.expect(application_model, validate=True)
-    @freelancer_ns.marshal_with(application_model, code=201)
+    @freelance_ns.expect(application_model)
+    @freelance_ns.marshal_with(application_model, envelope='data')
+    @jwt_required()
     def post(self):
-        data = request.json
-        app = Application(
-            title=data['title'],
-            description=data['description'],
-            status=data.get('status', 'pending')
+        """Create a new job application"""
+        data = request.get_json()
+        freelancer_id = get_jwt_identity()
+        
+        if data['freelancer_id'] != freelancer_id:
+            return {'message': 'Unauthorized'}, HTTPStatus.UNAUTHORIZED
+            
+        application = Application(
+            job_id=data['job_id'],
+            freelancer_id=freelancer_id,
+            cover_letter=data.get('cover_letter'),
+            proposed_rate=data.get('proposed_rate'),
+            status='pending',
+            created_at=datetime.now(timezone.utc)
         )
-        db.session.add(app)
+        db.session.add(application)
         db.session.commit()
-        return app, 201
+        return application, HTTPStatus.CREATED
 
-@freelancer_ns.route('/applications/<int:id>')
+    @freelance_ns.marshal_list_with(application_model, envelope='data')
+    @jwt_required()
+    def get(self):
+        """List all applications for the authenticated freelancer"""
+        freelancer_id = get_jwt_identity()
+        applications = Application.query.filter_by(freelancer_id=freelancer_id).all()
+        return applications, HTTPStatus.OK
+
+@freelance_ns.route('/applications/<int:id>')
 class ApplicationDetail(Resource):
-    @freelancer_ns.marshal_with(application_model)
+    @freelance_ns.marshal_with(application_model)
+    @jwt_required()
     def get(self, id):
-        return Application.query.get_or_404(id), 200
+        """Get a specific application"""
+        freelancer_id = get_jwt_identity()
+        application = Application.query.filter_by(id=id, freelancer_id=freelancer_id).first()
+        if not application:
+            return {'message': 'Application not found'}, HTTPStatus.NOT_FOUND
+        return application, HTTPStatus.OK
 
-# -----------------------------
-# Time Entries Endpoints
-# -----------------------------
-@freelancer_ns.route('/time-entries')
-class TimeEntryList(Resource):
-    @freelancer_ns.marshal_list_with(time_entry_model)
-    def get(self):
-        return TimeEntry.query.all(), 200
-
-    @freelancer_ns.expect(time_entry_model, validate=True)
-    @freelancer_ns.marshal_with(time_entry_model, code=201)
-    def post(self):
-        data = request.json
-        entry = TimeEntry(
-            project_id=data['project_id'],
-            hours=data['hours'],
-            description=data.get('description'),
-            date=datetime.now(timezone.utc)
-        )
-        db.session.add(entry)
+    @freelance_ns.expect(application_model)
+    @freelance_ns.marshal_with(application_model)
+    @jwt_required()
+    def put(self, id):
+        """Update an application"""
+        freelancer_id = get_jwt_identity()
+        application = Application.query.filter_by(id=id, freelancer_id=freelancer_id).first()
+        if not application:
+            return {'message': 'Application not found'}, HTTPStatus.NOT_FOUND
+            
+        data = request.get_json()
+        application.cover_letter = data.get('cover_letter', application.cover_letter)
+        application.proposed_rate = data.get('proposed_rate', application.proposed_rate)
+        application.status = data.get('status', application.status)
+        application.updated_at = datetime.now(timezone.utc)
         db.session.commit()
-        return entry, 201
+        return application, HTTPStatus.OK
 
-@freelancer_ns.route('/time-entries/<int:id>')
-class TimeEntryDetail(Resource):
-    @freelancer_ns.marshal_with(time_entry_model)
-    def get(self, id):
-        return TimeEntry.query.get_or_404(id), 200
+    @jwt_required()
+    def delete(self, id):
+        """Delete an application"""
+        freelancer_id = get_jwt_identity()
+        application = Application.query.filter_by(id=id, freelancer_id=freelancer_id).first()
+        if not application:
+            return {'message': 'Application not found'}, HTTPStatus.NOT_FOUND
+        db.session.delete(application)
+        db.session.commit()
+        return {'message': 'Application deleted'}, HTTPStatus.NO_CONTENT
 
-# -----------------------------
-# Deliverables Endpoints
-# -----------------------------
-@freelancer_ns.route('/deliverables')
+
+# Deliverable Submission Endpoints
+@freelance_ns.route('/deliverables')
 class DeliverableList(Resource):
-    @freelancer_ns.marshal_list_with(deliverable_model)
-    def get(self):
-        return Deliverable.query.all(), 200
-
-    @freelancer_ns.expect(deliverable_model, validate=True)
-    @freelancer_ns.marshal_with(deliverable_model, code=201)
+    @freelance_ns.expect(deliverable_model)
+    @freelance_ns.marshal_with(deliverable_model, envelope='data')
+    @jwt_required()
     def post(self):
-        data = request.json
+        """Submit a new deliverable"""
+        data = request.get_json()
+        freelancer_id = get_jwt_identity()
+        
+        if data['freelancer_id'] != freelancer_id:
+            return {'message': 'Unauthorized'}, HTTPStatus.UNAUTHORIZED
+            
         deliverable = Deliverable(
-            project_id=data['project_id'],
+            job_id=data['job_id'],
+            freelancer_id=freelancer_id,
             title=data['title'],
-            file_url=data.get('file_url'),
+            file_url=data['file_url'],
+            status='submitted',
             submitted_at=datetime.now(timezone.utc)
         )
         db.session.add(deliverable)
         db.session.commit()
-        return deliverable, 201
+        return deliverable, HTTPStatus.CREATED
 
-@freelancer_ns.route('/deliverables/<int:id>')
-class DeliverableDetail(Resource):
-    @freelancer_ns.marshal_with(deliverable_model)
-    def get(self, id):
-        return Deliverable.query.get_or_404(id), 200
-
-# -----------------------------
-# Invoices Endpoints
-# -----------------------------
-@freelancer_ns.route('/invoices')
-class InvoiceList(Resource):
-    @freelancer_ns.marshal_list_with(invoice_model)
+    @freelance_ns.marshal_list_with(deliverable_model, envelope='data')
+    @jwt_required()
     def get(self):
-        return Invoice.query.all(), 200
+        """List all deliverables for the authenticated freelancer"""
+        freelancer_id = get_jwt_identity()
+        deliverables = Deliverable.query.filter_by(freelancer_id=freelancer_id).all()
+        return deliverables, HTTPStatus.OK
 
-    @freelancer_ns.expect(invoice_model, validate=True)
-    @freelancer_ns.marshal_with(invoice_model, code=201)
+# Invoice Endpoints
+@freelance_ns.route('/invoices')
+class InvoiceList(Resource):
+    @freelance_ns.expect(invoice_model)
+    @freelance_ns.marshal_with(invoice_model, envelope='data')
+    @jwt_required()
     def post(self):
-        data = request.json
+        """Create a new invoice"""
+        data = request.get_json()
+        freelancer_id = get_jwt_identity()
+        
+        if data['freelancer_id'] != freelancer_id:
+            return {'message': 'Unauthorized'}, HTTPStatus.UNAUTHORIZED
+            
         invoice = Invoice(
-            project_id=data['project_id'],
+            job_id=data['job_id'],
+            freelancer_id=freelancer_id,
             amount=data['amount'],
-            status=data.get('status', 'pending'),
+            due_date=data['due_date'],
+            status='pending',
             created_at=datetime.now(timezone.utc)
         )
         db.session.add(invoice)
         db.session.commit()
-        return invoice, 201
+        return invoice, HTTPStatus.CREATED
 
-@freelancer_ns.route('/invoices/<int:id>')
-class InvoiceDetail(Resource):
-    @freelancer_ns.marshal_with(invoice_model)
-    def get(self, id):
-        return Invoice.query.get_or_404(id), 200
-
-# -----------------------------
-# Payments Endpoints
-# -----------------------------
-@freelancer_ns.route('/payments')
-class PaymentList(Resource):
-    @freelancer_ns.marshal_list_with(payment_model)
+    @freelance_ns.marshal_list_with(invoice_model, envelope='data')
+    @jwt_required()
     def get(self):
-        return Payment.query.all(), 200
+        """List all invoices for the authenticated freelancer"""
+        freelancer_id = get_jwt_identity()
+        invoices = Invoice.query.filter_by(freelancer_id=freelancer_id).all()
+        return invoices, HTTPStatus.OK
 
-    @freelancer_ns.expect(payment_model, validate=True)
-    @freelancer_ns.marshal_with(payment_model, code=201)
-    def post(self):
-        data = request.json
-        payment = Payment(
-            invoice_id=data['invoice_id'],
-            amount=data['amount'],
-            status=data['status'],
-            created_at=datetime.now(timezone.utc)
-        )
-        db.session.add(payment)
-        db.session.commit()
-        return payment, 201
+# Payment History Endpoints
+@freelance_ns.route('/payments')
+class PaymentList(Resource):
+    @freelance_ns.marshal_list_with(payment_model, envelope='data')
+    @jwt_required()
+    def get(self):
+        """List all payments for the authenticated freelancer"""
+        freelancer_id = get_jwt_identity()
+        invoices = Invoice.query.filter_by(freelancer_id=freelancer_id).all()
+        invoice_ids = [invoice.id for invoice in invoices]
+        payments = Payment.query.filter(Payment.invoice_id.in_(invoice_ids)).all()
+        return payments, HTTPStatus.OK
 
-@freelancer_ns.route('/payments/<int:id>')
+@freelance_ns.route('/payments/<int:id>')
 class PaymentDetail(Resource):
-    @freelancer_ns.marshal_with(payment_model)
+    @freelance_ns.marshal_with(payment_model)
+    @jwt_required()
     def get(self, id):
-        return Payment.query.get_or_404(id), 200
+        """Get a specific payment"""
+        freelancer_id = get_jwt_identity()
+        invoices = Invoice.query.filter_by(freelancer_id=freelancer_id).all()
+        invoice_ids = [invoice.id for invoice in invoices]
+        payment = Payment.query.filter_by(id=id, invoice_id=invoice_ids).first()
+        if not payment:
+            return {'message': 'Payment not found'}, HTTPStatus.NOT_FOUND
+        return payment, HTTPStatus.OK

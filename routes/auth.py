@@ -1,7 +1,7 @@
 from flask import app, request, jsonify
 from flask_restx import Namespace, Resource, fields
 from extensions import db
-from models import User  # Your user model
+from models import User  
 from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
