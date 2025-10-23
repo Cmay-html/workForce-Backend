@@ -1,10 +1,10 @@
-# routes/role1/milestones.py
+# routes/milestone.py
 from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
-from app.models.milestone import Milestone
-from app.models.project import Project
+from extensions import db
+from models import Milestone, Project
+from datetime import datetime
 
 # Create namespace
 api = Namespace('milestones', description='Milestone operations')
@@ -38,6 +38,59 @@ milestone_update_model = api.model('MilestoneUpdate', {
 
 @api.route('/')
 class MilestoneList(Resource):
+    @api.doc(security='Bearer Auth')
+    @api.response(200, 'Success')
+    @jwt_required()
+    def get(self):
+        """Get all milestones for current user's projects"""
+        try:
+            current_user_id = get_jwt_identity()
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+
+            # Get projects where user is either client or freelancer
+            user_projects = Project.query.filter(
+                (Project.client_id == current_user_id) |
+                (Project.freelancer_id == current_user_id)
+            ).all()
+
+            project_ids = [project.id for project in user_projects]
+
+            if not project_ids:
+                return {
+                    'success': True,
+                    'data': [],
+                    'pagination': {
+                        'page': 1,
+                        'per_page': per_page,
+                        'total': 0,
+                        'pages': 0
+                    }
+                }
+
+            # Get milestones for these projects
+            milestones = Milestone.query.filter(
+                Milestone.project_id.in_(project_ids)
+            ).order_by(Milestone.due_date.asc())\
+             .paginate(page=page, per_page=per_page, error_out=False)
+
+            return {
+                'success': True,
+                'data': [milestone.to_dict() for milestone in milestones.items],
+                'pagination': {
+                    'page': milestones.page,
+                    'per_page': milestones.per_page,
+                    'total': milestones.total,
+                    'pages': milestones.pages
+                }
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error fetching milestones: {str(e)}'
+            }, 500
+
     @api.doc(security='Bearer Auth')
     @api.expect(milestone_create_model)
     @api.response(201, 'Milestone created successfully')
