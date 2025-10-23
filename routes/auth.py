@@ -77,3 +77,47 @@ class Signup(Resource):
         refresh_token = create_refresh_token(identity=user.id)
 
         return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
+
+@auth_ns.route('/login')
+class Login(Resource):
+    @auth_ns.expect(login_model)
+    @auth_ns.marshal_with(token_response_model)
+    @limiter.limit("10 per minute")  # Limit login attempts to prevent brute-force
+    def post(self):
+        """Authenticate a user and return JWT tokens"""
+        data = request.get_json()
+
+        user = User.query.filter_by(email=data['email']).first()
+        if not user or not check_password_hash(user.password_hash, data['password']):
+            return {'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
+
+        # Generate JWT tokens
+        access_token = create_access_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=user.id)
+
+        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.OK
+
+@auth_ns.route('/refresh')
+class RefreshToken(Resource):
+    @auth_ns.marshal_with(token_response_model)
+    @jwt_required(refresh=True)  # Requires a valid refresh token
+    def post(self):
+        """Refresh an access token using a refresh token"""
+        current_user_id = get_jwt_identity()
+        access_token = create_access_token(identity=current_user_id)
+        return {'access_token': access_token, 'refresh_token': None}, HTTPStatus.OK
+
+@auth_ns.route('/me')
+class UserProfile(Resource):
+    @auth_ns.marshal_with(auth_ns.model('User', {
+        'id': fields.Integer,
+        'email': fields.String,
+        'role': fields.String,
+        'created_at': fields.DateTime
+    }))
+    @jwt_required()
+    def get(self):
+        """Get the authenticated user's profile"""
+        user_id = get_jwt_identity()
+        user = User.query.get_or_404(user_id)
+        return user, HTTPStatus.OK
