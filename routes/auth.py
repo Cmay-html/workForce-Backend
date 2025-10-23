@@ -33,3 +33,47 @@ token_response_model = auth_ns.model('TokenResponse', {
     'access_token': fields.String(description='JWT access token'),
     'refresh_token': fields.String(description='JWT refresh token')
 })
+
+# Apply CORS to the Flask app (move to main app.py if needed)
+# CORS(app)  # Uncomment if this is the main app file; otherwise, ensure it's in app.py
+
+@auth_ns.route('/signup')
+class Signup(Resource):
+    @auth_ns.expect(signup_model)
+    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED)
+    @limiter.limit("10 per minute")  # Limit signup attempts to prevent abuse
+    def post(self):
+        """Register a new user (freelancer or client)"""
+        data = request.get_json()
+
+        # Validate email uniqueness
+        if User.query.filter_by(email=data['email']).first():
+            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+
+        # Validate role
+        if data['role'] not in ['freelancer', 'client']:
+            return {'message': 'Invalid role. Must be freelancer or client'}, HTTPStatus.BAD_REQUEST
+
+        # Create new user
+        user = User(
+            email=data['email'],
+            password_hash=generate_password_hash(data['password']),
+            role=data['role'],
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(user)
+        db.session.commit()
+        # If role is freelancer, create a FreelancerProfile
+        if data['role'] == 'freelancer':
+            freelancer_profile = FreelancerProfile(
+                user_id=user.id,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.session.add(freelancer_profile)
+            db.session.commit()
+
+        # Generate JWT tokens
+        access_token = create_access_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=user.id)
+
+        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
