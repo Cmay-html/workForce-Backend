@@ -1,16 +1,21 @@
-from flask import app, request, jsonify
+from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from extensions import db
-from models import User  
+from models import User, FreelancerProfile
 from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
-import jwt
-from config import SECRET_KEY, JWT_ACCESS_EXPIRES, JWT_REFRESH_EXPIRES
-from middlewares.auth_middleware import login_required, role_required
-from flask_limiter.util import get_remote_address
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_cors import CORS
+from config import SECRET_KEY, JWT_ACCESS_EXPIRES, JWT_REFRESH_EXPIRES
+from http import HTTPStatus
 
-# Setup CORS
+# Initialize Flask-RESTX namespace
+auth_ns = Namespace('auth', description='Authentication operations')
 
-CORS(app)
+# Initialize rate limiter
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
