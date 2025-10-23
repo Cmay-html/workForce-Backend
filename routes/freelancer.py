@@ -123,7 +123,39 @@ class ApplicationDetail(Resource):
         db.session.delete(application)
         db.session.commit()
         return {'message': 'Application deleted'}, HTTPStatus.NO_CONTENT
+# Time Tracking Endpoints
+@freelance_ns.route('/time-entries')
+class TimeEntryList(Resource):
+    @freelance_ns.expect(time_entry_model)
+    @freelance_ns.marshal_with(time_entry_model, envelope='data')
+    @jwt_required()
+    def post(self):
+        """Create a new time entry"""
+        data = request.get_json()
+        freelancer_id = get_jwt_identity()
+        
+        if data['freelancer_id'] != freelancer_id:
+            return {'message': 'Unauthorized'}, HTTPStatus.UNAUTHORIZED
+            
+        time_entry = TimeEntry(
+            job_id=data['job_id'],
+            freelancer_id=freelancer_id,
+            hours_worked=data['hours_worked'],
+            date=data['date'],
+            description=data.get('description'),
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(time_entry)
+        db.session.commit()
+        return time_entry, HTTPStatus.CREATED
 
+    @freelance_ns.marshal_list_with(time_entry_model, envelope='data')
+    @jwt_required()
+    def get(self):
+        """List all time entries for the authenticated freelancer"""
+        freelancer_id = get_jwt_identity()
+        time_entries = TimeEntry.query.filter_by(freelancer_id=freelancer_id).all()
+        return time_entries, HTTPStatus.OK
 
 # Deliverable Submission Endpoints
 @freelance_ns.route('/deliverables')
