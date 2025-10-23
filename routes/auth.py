@@ -19,3 +19,17 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
+# Define input/output models for Swagger documentation and validation
+signup_model = auth_ns.model('Signup', {
+    'email': fields.String(required=True, description='User email address'),
+    'password': fields.String(required=True, description='User password'),
+    'role': fields.String(required=True, enum=['freelancer', 'client'], description='User role')
+})
+login_model = auth_ns.model('Login', {
+    'email': fields.String(required=True, description='User email address'),
+    'password': fields.String(required=True, description='User password')
+})
+token_response_model = auth_ns.model('TokenResponse', {
+    'access_token': fields.String(description='JWT access token'),
+    'refresh_token': fields.String(description='JWT refresh token')
+})
