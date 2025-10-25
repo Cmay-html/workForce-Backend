@@ -1,4 +1,4 @@
-`import os
+import os
 from flask_restx import Namespace, Resource, fields, reqparse
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
 from functools import wraps
