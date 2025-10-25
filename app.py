@@ -1,12 +1,10 @@
 from flask import Flask
 from flask_restx import Api
-<<<<<<< HEAD
 from extensions import db, jwt
 from flask_cors import CORS
 from flask_migrate import Migrate
 from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, TimeLog, User, FreelancerProfile, ClientProfile
 from routes.payments import register_payments
-=======
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -17,7 +15,6 @@ from routes.auth import auth_ns
 from routes.freelance import freelance_ns
 from dotenv import load_dotenv
 import os
->>>>>>> 6284299c2bcbda853f91d0ebe69a81de27ea1b32
 
 # Load environment variables
 load_dotenv()
