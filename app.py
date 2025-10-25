@@ -4,7 +4,7 @@ from extensions import db, jwt
 from flask_cors import CORS
 from flask_migrate import Migrate
 from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, TimeLog, User, FreelancerProfile, ClientProfile
-from routes.payments import register_payments
+from routes.payment import register_payments
 
 
 def create_app(config):
