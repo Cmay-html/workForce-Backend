@@ -1,5 +1,4 @@
 from extensions import db
-from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 
@@ -13,20 +12,19 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False)
     is_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    last_login = db.Column(db.DateTime, nullable=True)
+    last_login = db.Column(db.DateTime)
 
-    # One-to-one relationships to client and freelancer profiles
-    client_profile = db.relationship('ClientProfile', backref=db.backref('user', uselist=False), uselist=False)
-    freelancer_profile = db.relationship('FreelancerProfile', backref=db.backref('user', uselist=False), uselist=False)
+    # One-to-one relationships to profiles
+    client_profile = db.relationship(
+        'ClientProfile', uselist=False, back_populates='user', cascade='all, delete-orphan')
+    freelancer_profile = db.relationship(
+        'FreelancerProfile', uselist=False, back_populates='user', cascade='all, delete-orphan')
 
-    def set_password(self, password):
+    def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
-
-    def generate_token(self):
-        return create_access_token(identity=self.id)
 
     def to_dict(self):
         return {
@@ -35,7 +33,7 @@ class User(db.Model):
             'role': self.role,
             'is_verified': self.is_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_login': self.last_login.isoformat() if self.last_login else None,
         }
 
 
@@ -50,7 +48,9 @@ class ClientProfile(db.Model):
     website = db.Column(db.String(200))
     profile_picture_uri = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime)
+
+    user = db.relationship('User', back_populates='client_profile')
 
     def to_dict(self):
         return {
@@ -64,7 +64,7 @@ class ClientProfile(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
-    
+
 
 class FreelancerProfile(db.Model):
     __tablename__ = 'freelancer_profiles'
@@ -77,9 +77,9 @@ class FreelancerProfile(db.Model):
     portfolio_links = db.Column(db.Text)
     profile_picture_uri = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime)
 
-    # many-to-many with skills will be defined in skill models
+    user = db.relationship('User', back_populates='freelancer_profile')
 
     def to_dict(self):
         return {
@@ -93,5 +93,3 @@ class FreelancerProfile(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
-
-
