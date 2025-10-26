@@ -1,51 +1,55 @@
-# app.py
 from flask import Flask
 from flask_restx import Api
-from config import Config
-from extensions import db, migrate, jwt
+from extensions import db, jwt
+from flask_cors import CORS
+from flask_migrate import Migrate
+from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, TimeLog, User, FreelancerProfile, ClientProfile
+from routes.receipts import register_routes as register_receipts
+from flask_cors import CORS
+from flask_migrate import Migrate
+from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from extensions import db
+from routes.auth import auth_ns
+from routes.freelance import freelance_ns
+from dotenv import load_dotenv
+import os
 
-def create_app(config_class=Config):
+# Load environment variables
+load_dotenv()
+
+def create_app():
     app = Flask(__name__)
-    app.config.from_object(config_class)
+
+    # Configure from environment variables
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///app.db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key')
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 900  # 15 minutes
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = 2592000  # 30 days
 
     # Initialize extensions
     db.init_app(app)
-    migrate.init_app(app, db)
     jwt.init_app(app)
+    CORS(app)
+    Migrate(app, db)
+    JWTManager(app)
+    Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
 
-    # Create API instance
-    api = Api(
-        app,
-        version='1.0',
-        title='KaziFlow API',
-        description='Freelance Platform API',
-        doc='/swagger/',
-        authorizations={
-            'Bearer Auth': {
-                'type': 'apiKey',
-                'in': 'header',
-                'name': 'Authorization',
-                'description': 'Enter: Bearer <your_jwt_token>'
-            }
-        }
-    )
+    # Initialize API
+    api = Api(app, prefix='/api', doc='/docs', title='Freelance Platform API')
+    api.add_namespace(auth_ns)
+    api.add_namespace(freelance_ns)
 
-    # Register existing routes
-    from routes.projects import api as projects_ns
-    from routes.milestone import api as milestones_ns
-    from routes.review import api as review_ns
-    from routes.freelancer import api as freelancer_ns
-
-    # Register namespaces with their paths
-    api.add_namespace(projects_ns, path='/api/projects')
-    api.add_namespace(milestones_ns, path='/api/milestones')
-    api.add_namespace(review_ns, path='/api/reviews')
-    api.add_namespace(freelancer_ns, path='/api/freelancer')
+    # Register routes
+    register_payments(api)
 
     return app
 
-# Create app instance
-app = create_app()
-
 if __name__ == '__main__':
+    app = create_app()
+    with app.app_context():
+        db.create_all()  # Create database tables
     app.run(debug=True)
