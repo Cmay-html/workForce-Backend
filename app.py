@@ -43,6 +43,15 @@ def create_app():
     api.add_namespace(auth_ns)
     api.add_namespace(freelance_ns)
 
+    # Register consolidated client routes
+    from routes.projects import api as projects_ns
+    from routes.milestone import api as milestones_ns
+    from routes.reviews import api as reviews_ns
+
+    api.add_namespace(projects_ns, path='/api/projects')
+    api.add_namespace(milestones_ns, path='/api/milestones')
+    api.add_namespace(reviews_ns, path='/api/reviews')
+
     # Register routes
     register_payments(api)
 
