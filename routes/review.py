@@ -1,4 +1,4 @@
-# routes/role1/reviews.py
+# routes/reviews.py
 from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -34,9 +34,25 @@ class ReviewList(Resource):
     @api.response(403, 'Forbidden')
     @jwt_required()
     def post(self):
-        """Create a review for a freelancer (client perspective)"""
+        """Create a review for a freelancer"""
         try:
             current_user_id = get_jwt_identity()
+
+            # Get current user with role
+            current_user = User.query.get(current_user_id)
+            if not current_user:
+                return {
+                    'success': False,
+                    'message': 'User not found'
+                }, 404
+
+            # Only clients can create reviews
+            if current_user.role != 'client':
+                return {
+                    'success': False,
+                    'message': 'Only clients can create reviews'
+                }, 403
+
             data = request.get_json()
 
             # Validate required fields
@@ -132,15 +148,33 @@ class ReviewList(Resource):
     @api.response(401, 'Unauthorized')
     @jwt_required()
     def get(self):
-        """Get reviews written by the current client"""
+        """Get reviews based on user role"""
         try:
             current_user_id = get_jwt_identity()
+
+            # Get current user with role
+            current_user = User.query.get(current_user_id)
+            if not current_user:
+                return {
+                    'success': False,
+                    'message': 'User not found'
+                }, 404
+
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
             project_id = request.args.get('project_id', type=int)
 
-            # Build query
-            query = Review.query.filter_by(reviewer_id=current_user_id)
+            # Build query based on user role
+            if current_user.role == 'client':
+                # Clients see reviews they've written
+                query = Review.query.filter_by(reviewer_id=current_user_id)
+            elif current_user.role == 'freelancer':
+                # Freelancers see reviews about them
+                query = Review.query.join(Project).filter(
+                    Project.freelancer_id == current_user_id
+                )
+            else:  # admin or other roles
+                query = Review.query
 
             # Filter by project if provided
             if project_id:
@@ -155,13 +189,17 @@ class ReviewList(Resource):
                 project = Project.query.get(review.project_id)
                 freelancer = User.query.get(
                     project.freelancer_id) if project else None
+                reviewer = User.query.get(review.reviewer_id)
 
-                reviews_data.append({
+                review_data = {
                     **review.to_dict(),
                     'project_title': project.title if project else 'Unknown Project',
                     'freelancer_name': f"{freelancer.first_name} {freelancer.last_name}" if freelancer else 'Unknown Freelancer',
-                    'freelancer_id': project.freelancer_id if project else None
-                })
+                    'freelancer_id': project.freelancer_id if project else None,
+                    'reviewer_name': f"{reviewer.first_name} {reviewer.last_name}" if reviewer else 'Unknown Reviewer'
+                }
+
+                reviews_data.append(review_data)
 
             return {
                 'success': True,
@@ -185,31 +223,46 @@ class ReviewList(Resource):
 class ReviewResource(Resource):
     @api.doc(security='Bearer Auth')
     @api.response(200, 'Success')
+    @api.response(403, 'Forbidden')
     @api.response(404, 'Review not found')
     @jwt_required()
     def get(self, review_id):
         """Get a specific review"""
         try:
             current_user_id = get_jwt_identity()
+            current_user = User.query.get(current_user_id)
             review = Review.query.get_or_404(review_id)
 
-            # Check if user is the reviewer
-            if review.reviewer_id != current_user_id:
-                return {
-                    'success': False,
-                    'message': 'Not authorized to view this review'
-                }, 403
+            # Authorization check based on role
+            if current_user.role == 'client':
+                # Clients can only see their own reviews
+                if review.reviewer_id != current_user_id:
+                    return {
+                        'success': False,
+                        'message': 'Not authorized to view this review'
+                    }, 403
+            elif current_user.role == 'freelancer':
+                # Freelancers can only see reviews about them
+                project = Project.query.get(review.project_id)
+                if not project or project.freelancer_id != current_user_id:
+                    return {
+                        'success': False,
+                        'message': 'Not authorized to view this review'
+                    }, 403
+            # Admin can view any review
 
             # Get additional details
             project = Project.query.get(review.project_id)
             freelancer = User.query.get(
                 project.freelancer_id) if project else None
+            reviewer = User.query.get(review.reviewer_id)
 
             review_data = {
                 **review.to_dict(),
                 'project_title': project.title if project else 'Unknown Project',
                 'freelancer_name': f"{freelancer.first_name} {freelancer.last_name}" if freelancer else 'Unknown Freelancer',
-                'freelancer_id': project.freelancer_id if project else None
+                'freelancer_id': project.freelancer_id if project else None,
+                'reviewer_name': f"{reviewer.first_name} {reviewer.last_name}" if reviewer else 'Unknown Reviewer'
             }
 
             return {
@@ -233,15 +286,17 @@ class ReviewResource(Resource):
         """Update a review"""
         try:
             current_user_id = get_jwt_identity()
+            current_user = User.query.get(current_user_id)
             review = Review.query.get_or_404(review_id)
-            data = request.get_json()
 
-            # Check if user is the reviewer
-            if review.reviewer_id != current_user_id:
+            # Only the original reviewer (client) can update reviews
+            if current_user.role != 'client' or review.reviewer_id != current_user_id:
                 return {
                     'success': False,
                     'message': 'Not authorized to update this review'
                 }, 403
+
+            data = request.get_json()
 
             # Update fields if provided
             if 'rating' in data:
@@ -280,10 +335,11 @@ class ReviewResource(Resource):
         """Delete a review"""
         try:
             current_user_id = get_jwt_identity()
+            current_user = User.query.get(current_user_id)
             review = Review.query.get_or_404(review_id)
 
-            # Check if user is the reviewer
-            if review.reviewer_id != current_user_id:
+            # Only the original reviewer (client) can delete reviews
+            if current_user.role != 'client' or review.reviewer_id != current_user_id:
                 return {
                     'success': False,
                     'message': 'Not authorized to delete this review'
@@ -317,9 +373,9 @@ class FreelancerReviews(Resource):
     def get(self, freelancer_id):
         """Get all reviews for a specific freelancer"""
         try:
-            # Verify freelancer exists
+            # Verify freelancer exists and is actually a freelancer
             freelancer = User.query.get(freelancer_id)
-            if not freelancer:
+            if not freelancer or freelancer.role != 'freelancer':
                 return {
                     'success': False,
                     'message': 'Freelancer not found'

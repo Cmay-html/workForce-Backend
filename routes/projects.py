@@ -1,4 +1,4 @@
-# routes/role1/projects.py
+# routes/projects.py
 from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -39,15 +39,35 @@ class ProjectList(Resource):
     @api.response(401, 'Unauthorized')
     @jwt_required()
     def get(self):
-        """Get all projects for the current client"""
+        """Get projects based on user role"""
         try:
             current_user_id = get_jwt_identity()
+
+            # Get current user with role
+            current_user = User.query.get(current_user_id)
+            if not current_user:
+                return {
+                    'success': False,
+                    'message': 'User not found'
+                }, 404
+
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
 
-            # Get projects for this client with pagination
-            projects = Project.query.filter_by(client_id=current_user_id)\
-                .order_by(Project.created_at.desc())\
+            # Role-based project filtering
+            if current_user.role == 'client':
+                # Clients see their own projects
+                query = Project.query.filter_by(client_id=current_user_id)
+            elif current_user.role == 'freelancer':
+                # Freelancers see available projects and their assigned projects
+                query = Project.query.filter(
+                    (Project.status.in_(['posted', 'active'])) |
+                    (Project.freelancer_id == current_user_id)
+                )
+            else:  # admin or other roles
+                query = Project.query
+
+            projects = query.order_by(Project.created_at.desc())\
                 .paginate(page=page, per_page=per_page, error_out=False)
 
             return {
@@ -70,11 +90,28 @@ class ProjectList(Resource):
     @api.expect(project_create_model)
     @api.response(201, 'Project created successfully')
     @api.response(400, 'Validation error')
+    @api.response(403, 'Forbidden - Client role required')
     @jwt_required()
     def post(self):
-        """Create a new project"""
+        """Create a new project (Client only)"""
         try:
             current_user_id = get_jwt_identity()
+
+            # Get current user with role
+            current_user = User.query.get(current_user_id)
+            if not current_user:
+                return {
+                    'success': False,
+                    'message': 'User not found'
+                }, 404
+
+            # Only clients can create projects
+            if current_user.role != 'client':
+                return {
+                    'success': False,
+                    'message': 'Only clients can create projects'
+                }, 403
+
             data = request.get_json()
 
             # Validate required fields
@@ -116,20 +153,32 @@ class ProjectList(Resource):
 class ProjectResource(Resource):
     @api.doc(security='Bearer Auth')
     @api.response(200, 'Success')
+    @api.response(403, 'Forbidden')
     @api.response(404, 'Project not found')
     @jwt_required()
     def get(self, project_id):
         """Get a specific project"""
         try:
             current_user_id = get_jwt_identity()
+            current_user = User.query.get(current_user_id)
             project = Project.query.get_or_404(project_id)
 
-            # Check authorization
-            if project.client_id != current_user_id:
-                return {
-                    'success': False,
-                    'message': 'Not authorized to access this project'
-                }, 403
+            # Authorization check based on role
+            if current_user.role == 'client':
+                # Clients can only see their own projects
+                if project.client_id != current_user_id:
+                    return {
+                        'success': False,
+                        'message': 'Not authorized to access this project'
+                    }, 403
+            elif current_user.role == 'freelancer':
+                # Freelancers can see projects they're assigned to or available projects
+                if project.freelancer_id != current_user_id and project.status not in ['posted', 'active']:
+                    return {
+                        'success': False,
+                        'message': 'Not authorized to access this project'
+                    }, 403
+            # Admin can view any project
 
             return {
                 'success': True,
@@ -152,9 +201,11 @@ class ProjectResource(Resource):
         """Update a project"""
         try:
             current_user_id = get_jwt_identity()
+            current_user = User.query.get(current_user_id)
             project = Project.query.get_or_404(project_id)
 
-            if project.client_id != current_user_id:
+            # Only project client can update projects
+            if current_user.role != 'client' or project.client_id != current_user_id:
                 return {
                     'success': False,
                     'message': 'Not authorized to update this project'
@@ -194,14 +245,25 @@ class ProjectApplications(Resource):
         """Get all applications for a project"""
         try:
             current_user_id = get_jwt_identity()
+            current_user = User.query.get(current_user_id)
             project = Project.query.get_or_404(project_id)
 
-            # Check if user owns the project
-            if project.client_id != current_user_id:
+            # Authorization check
+            if current_user.role == 'client':
+                # Only project client can view applications
+                if project.client_id != current_user_id:
+                    return {
+                        'success': False,
+                        'message': 'Not authorized to view applications for this project'
+                    }, 403
+            elif current_user.role == 'freelancer':
+                # Freelancers can only see their own applications
+                # This would require a different endpoint for freelancers
                 return {
                     'success': False,
-                    'message': 'Not authorized to view applications for this project'
+                    'message': 'Use the freelancer applications endpoint'
                 }, 403
+            # Admin can view any project applications
 
             applications = ProjectApplication.query.filter_by(project_id=project_id)\
                 .join(User, ProjectApplication.freelancer_id == User.id)\
@@ -240,14 +302,15 @@ class ProjectHire(Resource):
     @api.response(403, 'Forbidden')
     @jwt_required()
     def post(self, project_id):
-        """Hire a freelancer for a project"""
+        """Hire a freelancer for a project (Client only)"""
         try:
             current_user_id = get_jwt_identity()
+            current_user = User.query.get(current_user_id)
             project = Project.query.get_or_404(project_id)
             data = request.get_json()
 
-            # Check authorization
-            if project.client_id != current_user_id:
+            # Only project client can hire freelancers
+            if current_user.role != 'client' or project.client_id != current_user_id:
                 return {
                     'success': False,
                     'message': 'Not authorized to hire for this project'
