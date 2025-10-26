@@ -1,8 +1,8 @@
-"""first migration
+"""change on payment table
 
-Revision ID: f8c3f722c21f
+Revision ID: 6ab01d912a89
 Revises: 
-Create Date: 2025-10-21 11:42:56.306656
+Create Date: 2025-10-26 15:08:12.903031
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'f8c3f722c21f'
+revision = '6ab01d912a89'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -161,11 +161,14 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('invoice_id', sa.Integer(), nullable=True),
     sa.Column('client_id', sa.Integer(), nullable=True),
+    sa.Column('freelancer_id', sa.Integer(), nullable=True),
     sa.Column('transaction_id', sa.String(length=100), nullable=True),
     sa.Column('amount', sa.NUMERIC(precision=10, scale=2), nullable=True),
     sa.Column('paid_at', sa.DateTime(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('status', sa.String(length=50), nullable=True),
     sa.ForeignKeyConstraint(['client_id'], ['client_profiles.id'], ),
+    sa.ForeignKeyConstraint(['freelancer_id'], ['freelancer_profiles.id'], ),
     sa.ForeignKeyConstraint(['invoice_id'], ['invoices.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

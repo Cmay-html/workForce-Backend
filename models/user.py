@@ -2,6 +2,7 @@ from extensions import db
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
+# from models import Payment
 
 
 class User(db.Model):
@@ -52,6 +53,8 @@ class ClientProfile(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
+    payments = db.relationship("Payment", backref="client")
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -80,6 +83,7 @@ class FreelancerProfile(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     # many-to-many with skills will be defined in skill models
+    payments = db.relationship("Payment", backref="freelancer")
 
     def to_dict(self):
         return {
