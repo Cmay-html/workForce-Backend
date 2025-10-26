@@ -3,7 +3,7 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
-from models import Milestone, Project
+from models import Milestone, Project, User
 from datetime import datetime
 
 # Create namespace
@@ -21,6 +21,7 @@ milestone_model = api.model('Milestone', {
 })
 
 milestone_create_model = api.model('MilestoneCreate', {
+    'project_id': fields.Integer(required=True, description='Project ID'),
     'title': fields.String(required=True, description='Milestone title'),
     'description': fields.String(required=True, description='Milestone description'),
     'due_date': fields.String(required=True, description='Due date (YYYY-MM-DD)'),
@@ -45,16 +46,29 @@ class MilestoneList(Resource):
         """Get all milestones for current user's projects"""
         try:
             current_user_id = get_jwt_identity()
+
+            # Get current user with role information
+            current_user = User.query.get(current_user_id)
+            if not current_user:
+                return {
+                    'success': False,
+                    'message': 'User not found'
+                }, 404
+
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
 
-            # Get projects where user is either client or freelancer
-            user_projects = Project.query.filter(
-                (Project.client_id == current_user_id) |
-                (Project.freelancer_id == current_user_id)
-            ).all()
+            # Get projects based on user role
+            if current_user.role == 'client':
+                user_projects = Project.query.filter_by(
+                    client_id=current_user_id)
+            elif current_user.role == 'freelancer':
+                user_projects = Project.query.filter_by(
+                    freelancer_id=current_user_id)
+            else:  # admin or other roles
+                user_projects = Project.query
 
-            project_ids = [project.id for project in user_projects]
+            project_ids = [project.id for project in user_projects.all()]
 
             if not project_ids:
                 return {
@@ -95,12 +109,21 @@ class MilestoneList(Resource):
     @api.expect(milestone_create_model)
     @api.response(201, 'Milestone created successfully')
     @api.response(400, 'Validation error')
-    @api.response(403, 'Forbidden')
+    @api.response(403, 'Forbidden - Client role required')
     @jwt_required()
     def post(self):
-        """Create a new milestone for a project"""
+        """Create a new milestone for a project (Client only)"""
         try:
             current_user_id = get_jwt_identity()
+
+            # Check if user is a client
+            current_user = User.query.get(current_user_id)
+            if not current_user or current_user.role != 'client':
+                return {
+                    'success': False,
+                    'message': 'Only clients can create milestones'
+                }, 403
+
             data = request.get_json()
 
             # Validate required fields
