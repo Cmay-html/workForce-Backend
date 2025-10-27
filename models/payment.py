@@ -9,10 +9,13 @@ class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'))
     client_id = db.Column(db.Integer, db.ForeignKey('client_profiles.id'))
-    transaction_id = db.Column(db.String(100))
-    amount = db.Column(NUMERIC(10, 2))
+    freelancer_id = db.Column(db.Integer, db.ForeignKey('freelancer_profiles.id'))
+    transaction_id = db.Column(db.String, nullable=True )
+    amount = db.Column(db.Float, nullable=True)
     paid_at = db.Column(db.DateTime, default = datetime.now(timezone.utc))
-    status = db.Column(db.String(50))
+    status = db.Column(db.String, default='completed'   )
+    payment_date = db.Column(db.Date, nullable=True )
+    payment_method = db.Column(db.String, nullable=True)
 
     def to_dict(self):
         return {
