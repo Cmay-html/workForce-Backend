@@ -1,5 +1,5 @@
 from flask_restx import Namespace, Resource, fields, abort
-from extensions import api
+from extensions import api, db
 from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, FreelancerSkill, TimeLog, User, FreelancerProfile, ClientProfile, Dispute, Policy
 from models import DeliverableSchema, InvoiceSchema, MessageSchema, MilestoneSchema, PaymentSchema, ProjectApplicationSchema, ProjectSchema, ReviewSchema, SkillSchema, FreelancerSkillSchema, TimeLogSchema, UserSchema, FreelancerProfileSchema, ClientProfileSchema, DisputeSchema, PolicySchema
 from auth import admin_required, create_token
@@ -11,7 +11,7 @@ from sqlalchemy import func
 admin_ns = Namespace('admin', description='Admin operations')
 auth_ns = Namespace('auth', description='Authentication')
 
-# Swagger Models (unchanged)
+# Swagger Models
 user_model = admin_ns.model('User', {
     'email': fields.String(required=True),
     'password': fields.String(required=True),
@@ -131,7 +131,7 @@ def init_routes():
     api.add_namespace(admin_ns, path='/api/admin')
     api.add_namespace(auth_ns, path='/api/auth')
 
-# Authentication Routes (unchanged)
+# Authentication Routes
 @auth_ns.route('/register')
 class Register(Resource):
     @auth_ns.expect(user_model, validate=True)
@@ -155,6 +155,7 @@ class Login(Resource):
         if user and user.check_password(data['password']):
             token = create_token(user)
             user.last_login = datetime.utcnow()
+            db.session.add(user)
             db.session.commit()
             return {'token': token}
         return {'error': 'Invalid credentials'}, 401
@@ -183,7 +184,7 @@ for endpoint, (model, schema, swagger_model) in models.items():
     @admin_ns.route(f'/{endpoint}')
     class AdminList(Resource):
         @admin_ns.doc(f'list_{endpoint[:-1] if endpoint.endswith("s") else endpoint}')
-        @admin_required()  
+        @admin_required()
         def get(self):
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
@@ -192,7 +193,7 @@ for endpoint, (model, schema, swagger_model) in models.items():
 
         @admin_ns.doc(f'create_{endpoint[:-1] if endpoint.endswith("s") else endpoint}')
         @admin_ns.expect(swagger_model, validate=True)
-        @admin_required() 
+        @admin_required()
         def post(self):
             data = request.json
             instance = model(**{k: v for k, v in data.items() if k in model.__table__.columns.keys()})
@@ -203,14 +204,14 @@ for endpoint, (model, schema, swagger_model) in models.items():
     @admin_ns.route(f'/{endpoint}/<int:id>')
     class AdminResource(Resource):
         @admin_ns.doc(f'get_{endpoint[:-1] if endpoint.endswith("s") else endpoint}')
-        @admin_required() 
+        @admin_required()
         def get(self, id):
             instance = model.query.get_or_404(id)
             return schema().dump(instance)
 
         @admin_ns.doc(f'update_{endpoint[:-1] if endpoint.endswith("s") else endpoint}')
         @admin_ns.expect(swagger_model, validate=True)
-        @admin_required() 
+        @admin_required()
         def put(self, id):
             instance = model.query.get_or_404(id)
             data = request.json
@@ -221,7 +222,7 @@ for endpoint, (model, schema, swagger_model) in models.items():
             return schema().dump(instance)
 
         @admin_ns.doc(f'delete_{endpoint[:-1] if endpoint.endswith("s") else endpoint}')
-        @admin_required() 
+        @admin_required()
         def delete(self, id):
             instance = model.query.get_or_404(id)
             db.session.delete(instance)
@@ -232,7 +233,7 @@ for endpoint, (model, schema, swagger_model) in models.items():
 @admin_ns.route('/messages/<int:message_id>/approve')
 class AdminMessageApprove(Resource):
     @admin_ns.doc('approve_message')
-    @admin_required()  
+    @admin_required()
     def put(self, message_id):
         message = Message.query.get_or_404(message_id)
         message.is_approved = True
@@ -245,7 +246,7 @@ class AdminMessageApprove(Resource):
 class AdminDisputeResolve(Resource):
     @admin_ns.doc('resolve_dispute')
     @admin_ns.expect(dispute_model, validate=True)
-    @admin_required()  
+    @admin_required()
     def put(self, dispute_id):
         dispute = Dispute.query.get_or_404(dispute_id)
         data = request.json
@@ -261,7 +262,7 @@ class AdminDisputeResolve(Resource):
 class AdminPolicyUpdate(Resource):
     @admin_ns.doc('update_policy')
     @admin_ns.expect(policy_model, validate=True)
-    @admin_required()  
+    @admin_required()
     def put(self, policy_id):
         policy = Policy.query.get_or_404(policy_id)
         data = request.json
@@ -273,7 +274,7 @@ class AdminPolicyUpdate(Resource):
 @admin_ns.route('/analytics')
 class AdminAnalytics(Resource):
     @admin_ns.doc('get_analytics')
-    @admin_required()  
+    @admin_required()
     def get(self):
         total_users = db.session.query(func.count(User.id)).scalar()
         ongoing_projects = db.session.query(func.count(Project.id)).filter(Project.status == 'active').scalar()

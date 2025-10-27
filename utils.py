@@ -6,17 +6,14 @@ from werkzeug.utils import secure_filename
 import os
 
 # Pagination utility
-def paginate_query(query, schema, page=None, per_page=None):
-    page = page or request.args.get('page', 1, type=int)
-    per_page = per_page or request.args.get('per_page', 10, type=int)
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+def paginate_query(pagination, schema):
     items = schema.dump(pagination.items)
     return {
         'items': items,
         'total': pagination.total,
         'pages': pagination.pages,
-        'page': page,
-        'per_page': per_page
+        'page': pagination.page,
+        'per_page': pagination.per_page
     }
 
 # Email utility (requires Flask-Mail configuration)

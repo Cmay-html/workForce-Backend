@@ -1,220 +1,144 @@
 from app import create_app
-from datetime import datetime,timezone,timedelta
-from config import DevConfig
 from extensions import db
-from models import (
-    User, Skill, ClientProfile, FreelancerProfile,FreelancerSkill,
-    Project, Milestone, Invoice, Payment, ProjectApplication,
-    TimeLog, Deliverable, Review, Message
-)
+from models import User, ClientProfile, FreelancerProfile, Project, Milestone, Deliverable, Invoice, Payment, Message, Review, Skill, FreelancerSkill, TimeLog, Dispute, Policy
+from datetime import datetime, timezone, timedelta
+import os
 
-def seed_data():
-    app = create_app(DevConfig)
-    with app.app_context():
-        try:
-            # Skills
-            skill_names = ['Python', 'JavaScript', 'React', 'SQL', 'UI/UX Design', 'Node.js']
+# Create app context
+app = create_app()
+with app.app_context():
+    # Clear existing data in the correct order (dependent tables first)
+    db.session.query(TimeLog).delete()
+    db.session.query(FreelancerSkill).delete()
+    db.session.query(Review).delete()
+    db.session.query(Message).delete()
+    db.session.query(Payment).delete()
+    db.session.query(Invoice).delete()
+    db.session.query(Deliverable).delete()
+    db.session.query(Milestone).delete()
+    db.session.query(Dispute).delete()
+    db.session.query(Project).delete()
+    db.session.query(ClientProfile).delete()
+    db.session.query(FreelancerProfile).delete()
+    db.session.query(Skill).delete()
+    db.session.query(Policy).delete()
+    db.session.query(User).delete()  # Delete users last
+    db.session.commit()
 
-            # Query existing names
-            existing = {s.name for s in db.session.query(Skill).filter(Skill.name.in_(skill_names)).all()}
+    # Seed Users
+    admin_user = User(email='admin@example.com', role='admin')
+    admin_user.set_password('adminpass')
+    client_user = User(email='client@example.com', role='client')
+    client_user.set_password('clientpass')
+    freelancer_user = User(email='freelancer@example.com', role='freelancer')
+    freelancer_user.set_password('freelancerpass')
+    db.session.add_all([admin_user, client_user, freelancer_user])
+    db.session.commit()
 
-            # Create only missing skills
-            to_create = [Skill(name=name) for name in skill_names if name not in existing]
-            if to_create:
-                db.session.add_all(to_create)
-                db.session.commit()
+    # Seed Profiles
+    client_profile = ClientProfile(user_id=client_user.id, company_name='ClientCo', industry='Tech')
+    freelancer_profile = FreelancerProfile(user_id=freelancer_user.id, hourly_rate=50.00, bio='Experienced developer')
+    db.session.add_all([client_profile, freelancer_profile])
+    db.session.commit()
 
-            # Users with proper password hashing
-            users = {
-                'client': User(
-                    email='client@example.com',
-                    role='client',
-                    is_verified=True,
-                    created_at=datetime.now(timezone.utc)
-                ),
-                'freelancer': User(
-                    email='freelancer@example.com',
-                    role='freelancer',
-                    is_verified=True,
-                    created_at=datetime.now(timezone.utc)
-                )
-            }
-            for user in users.values():
-                user.set_password('password123')  # Using proper password hashing
-            db.session.add_all(users.values())
-            db.session.commit()
+    # Seed Skills
+    skill1 = Skill(name='Python')
+    skill2 = Skill(name='JavaScript')
+    db.session.add_all([skill1, skill2])
+    db.session.commit()
 
-            # Profiles
-            client_profile = ClientProfile(
-                user_id=users['client'].id,
-                company_name='Acme Corp',
-                industry='Technology',
-                bio='Innovative tech solutions provider',
-                website='https://acme.example.com',
-                profile_picture_uri='https://acme.example.com/logo.png',
-                created_at=datetime.now(timezone.utc)
-            )
-            freelancer_profile = FreelancerProfile(
-                user_id=users['freelancer'].id,
-                hourly_rate=50.00,
-                bio='Full stack developer specializing in Python and React',
-                experience='5 years freelance experience',
-                portfolio_links='["https://portfolio.example.com", "https://github.com/example"]',
-                profile_picture_uri='https://portfolio.example.com/profile.jpg',
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add_all([client_profile, freelancer_profile])
-            db.session.commit()
+    # Seed Freelancer Skills
+    freelancer_skill = FreelancerSkill(freelancer_profile_id=freelancer_profile.id, skill_id=skill1.id)
+    db.session.add(freelancer_skill)
+    db.session.commit()
 
-            # Freelancer skills
-            skill_dict = {skill.name: skill for skill in db.session.query(Skill).all()}
-            freelancer_skills = [
-                FreelancerSkill(
-                    freelancer_profile_id=freelancer_profile.id,
-                    skill_id=skill_dict[name].id
-                )
-                for name in ['Python', 'React', 'JavaScript']
-            ]
-            db.session.add_all(freelancer_skills)
-            db.session.commit()
+    # Seed Project
+    project = Project(
+        title='Website Development',
+        description='Build a responsive website',
+        budget=1000.00,
+        status='active',
+        client_id=client_profile.id,
+        freelancer_id=freelancer_profile.id,
+        created_at=datetime.now(timezone.utc)
+    )
+    db.session.add(project)
+    db.session.commit()
 
-            # Project
-            project = Project(
-                title='Website Development',
-                description='Develop a responsive company website',
-                budget=5000.00,
-                status='in_progress',  # Using correct enum value
-                client_id=client_profile.id,
-                freelancer_id=freelancer_profile.id,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(project)
-            db.session.commit()
+    # Seed Milestone
+    milestone = Milestone(
+        project_id=project.id,
+        title='Design Phase',
+        description='Complete website design',
+        due_date=datetime.now(timezone.utc) + timedelta(days=7),
+        amount=300.00,
+        status='pending'
+    )
+    db.session.add(milestone)
+    db.session.commit()
 
-            # Project Application (showing how freelancer was selected)
-            application = ProjectApplication(
-                project_id=project.id,
-                freelancer_id=freelancer_profile.id,
-                status='accepted',
-                applied_at=datetime.now(timezone.utc) - timedelta(days=5)
-            )
-            db.session.add(application)
-            db.session.commit()
+    # Seed Deliverable
+    deliverable = Deliverable(
+        milestone_id=milestone.id,
+        file_url='http://example.com/design.pdf',
+        status='submitted'
+    )
+    db.session.add(deliverable)
+    db.session.commit()
 
-            # Milestones with Deliverables and Invoices
-            milestones = [
-                Milestone(
-                    project_id=project.id,
-                    title='Design Phase',
-                    description='Complete UI/UX design',
-                    due_date=datetime.now(timezone.utc) + timedelta(days=25),
-                    amount=1500.00,
-                    status='in_progress'
-                ),
-                Milestone(
-                    project_id=project.id,
-                    title='Development Phase',
-                    description='Build website frontend and backend',
-                    due_date=datetime.now(timezone.utc) + timedelta(days=70),
-                    amount=3500.00,
-                    status='pending'
-                )
-            ]
-            db.session.add_all(milestones)
-            db.session.commit()
+    # Seed Invoice
+    invoice = Invoice(milestone_id=milestone.id, amount=300.00, status='pending')
+    db.session.add(invoice)
+    db.session.commit()
 
-            # First milestone's deliverable
-            deliverable = Deliverable(
-                milestone_id=milestones[0].id,
-                file_url='https://example.com/files/design-draft.pdf',
-                link='https://figma.com/design/draft',
-                submitted_at=datetime.now(timezone.utc),
-                status='under_review'
-            )
-            db.session.add(deliverable)
-            db.session.commit()
+    # Seed Payment
+    payment = Payment(invoice_id=invoice.id, client_id=client_profile.id, amount=300.00, status='processed')
+    db.session.add(payment)
+    db.session.commit()
 
-            # Invoice for first milestone
-            invoice = Invoice(
-                milestone_id=milestones[0].id,
-                amount=1500.00,
-                generated_at=datetime.now(timezone.utc),
-                status='pending'
-            )
-            db.session.add(invoice)
-            db.session.commit()
+    # Seed Message
+    message = Message(
+        project_id=project.id,
+        sender_id=freelancer_profile.user_id,
+        receiver_id=client_profile.user_id,
+        content='Design is ready for review',
+        is_approved=False
+    )
+    db.session.add(message)
+    db.session.commit()
 
-            # Payment for the invoice
-            payment = Payment(
-                invoice_id=invoice.id,
-                client_id=client_profile.id,
-                transaction_id='txn_123456',
-                amount=1500.00,
-                paid_at=datetime.now(timezone.utc),
-                status='completed'
-            )
-            db.session.add(payment)
-            db.session.commit()
+    # Seed Review
+    review = Review(
+        project_id=project.id,
+        reviewer_id=client_profile.user_id,
+        rating=4,
+        comment='Good work!'
+    )
+    db.session.add(review)
+    db.session.commit()
 
-            # Time logs
-            time_logs = [
-                TimeLog(
-                    project_id=project.id,
-                    freelancer_id=freelancer_profile.id,
-                    start_time=datetime.now(timezone.utc) - timedelta(days=1, hours=4),
-                    end_time=datetime.now(timezone.utc) - timedelta(days=1)
-                ),
-                TimeLog(
-                    project_id=project.id,
-                    freelancer_id=freelancer_profile.id,
-                    start_time=datetime.now(timezone.utc) - timedelta(hours=5),
-                    end_time=datetime.now(timezone.utc) - timedelta(hours=1)
-                )
-            ]
-            db.session.add_all(time_logs)
-            db.session.commit()
+    # Seed TimeLog
+    time_log = TimeLog(
+        project_id=project.id,
+        freelancer_id=freelancer_profile.id,  # Changed from freelancer_profile.user_id to freelancer_profile.id
+        start_time=datetime.now(timezone.utc) - timedelta(hours=2),
+        end_time=datetime.now(timezone.utc)
+    )
+    db.session.add(time_log)
+    db.session.commit()
 
-            # Messages
-            messages = [
-                Message(
-                    project_id=project.id,
-                    sender_id=users['client'].id,
-                    receiver_id=users['freelancer'].id,
-                    content='Can we schedule a progress review?',
-                    timestamp=datetime.now(timezone.utc) - timedelta(hours=24),
-                    is_approved=True
-                ),
-                Message(
-                    project_id=project.id,
-                    sender_id=users['freelancer'].id,
-                    receiver_id=users['client'].id,
-                    content='Sure! I can show you the design progress tomorrow.',
-                    timestamp=datetime.now(timezone.utc) - timedelta(hours=23),
-                    is_approved=True
-                )
-            ]
-            db.session.add_all(messages)
-            db.session.commit()
+    # Seed Dispute
+    dispute = Dispute(
+        milestone_id=milestone.id,
+        description='Delay in delivery',
+        status='open'
+    )
+    db.session.add(dispute)
+    db.session.commit()
 
-            # Initial project review
-            review = Review(
-                project_id=project.id,
-                reviewer_id=users['client'].id,
-                rating=4,
-                comment='Great progress on the design phase!',
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(review)
-            db.session.commit()
+    # Seed Policy
+    policy = Policy(name='Payment Policy', content='Payments are due within 30 days')
+    db.session.add(policy)
+    db.session.commit()
 
-            print("Seed data inserted successfully!")
-
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error seeding data: {str(e)}")
-            raise
-        finally:
-            db.session.close()
-
-if __name__ == '__main__':
-    seed_data()
+    print("Database seeded successfully!")
