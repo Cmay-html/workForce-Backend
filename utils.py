@@ -1,5 +1,5 @@
 from flask import request, jsonify
-from sqlalchemy import paginate
+from flask_sqlalchemy import Pagination  # Import Pagination type hint
 from flask_mail import Mail, Message
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -9,7 +9,7 @@ import os
 def paginate_query(query, schema, page=None, per_page=None):
     page = page or request.args.get('page', 1, type=int)
     per_page = per_page or request.args.get('per_page', 10, type=int)
-    pagination = paginate(query, page=page, per_page=per_page)
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     items = schema.dump(pagination.items)
     return {
         'items': items,
