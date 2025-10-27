@@ -15,10 +15,11 @@ class Project(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     completed_at = db.Column(db.DateTime, onupdate=datetime.now(timezone.utc))
 
-    # Relationships (defer TimeLog relationship to avoid circular import)
+    # Relationships using string references to avoid circular imports
     milestones = db.relationship('Milestone', backref='project', lazy=True, cascade='all, delete-orphan')
     applications = db.relationship('ProjectApplication', backref='project', lazy=True, cascade='all, delete-orphan')
     messages = db.relationship('Message', backref='project', lazy=True, cascade='all, delete-orphan')
+    time_logs = db.relationship('TimeLog', backref='project', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -38,7 +39,3 @@ class ProjectSchema(SQLAlchemyAutoSchema):
         model = Project
         load_instance = True
         include_relationships = True  # Include related objects (e.g., milestones)
-
-# Defer TimeLog relationship setup until after all models are loaded
-from models import TimeLog
-Project.time_logs = db.relationship('TimeLog', backref='project', lazy=True, cascade='all, delete-orphan')
