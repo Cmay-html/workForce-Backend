@@ -4,7 +4,7 @@ from extensions import db, migrate, jwt, api
 from flask_cors import CORS
 from flask_migrate import Migrate
 from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, TimeLog, User, FreelancerProfile, ClientProfile, Dispute, Policy
-from config import DevConfig
+from config import DevConfig  
 from routes import init_routes
 
 def create_app(config=DevConfig):
@@ -12,8 +12,8 @@ def create_app(config=DevConfig):
     app.config.from_object(config)
     db.init_app(app)
     CORS(app)
-    migrate.init_app(app, db)  # Explicitly initialize Migrate
-    api.init_app(app)
+    migrate.init_app(app, db)  
+    api.init_app(app)          
     init_routes()
     return app
 
