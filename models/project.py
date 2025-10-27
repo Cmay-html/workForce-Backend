@@ -15,11 +15,10 @@ class Project(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     completed_at = db.Column(db.DateTime, onupdate=datetime.now(timezone.utc))
 
-    # Relationships using string references to avoid circular imports
+    # Relationships (excluding TimeLog for now)
     milestones = db.relationship('Milestone', backref='project', lazy=True, cascade='all, delete-orphan')
     applications = db.relationship('ProjectApplication', backref='project', lazy=True, cascade='all, delete-orphan')
     messages = db.relationship('Message', backref='project', lazy=True, cascade='all, delete-orphan')
-    time_logs = db.relationship('TimeLog', backref='project', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {

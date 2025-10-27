@@ -11,6 +11,14 @@ from .time_log import TimeLog, TimeLogSchema
 from .user import User, UserSchema, ClientProfile, ClientProfileSchema, FreelancerProfile, FreelancerProfileSchema
 from .dispute import Dispute, DisputeSchema
 from .policy import Policy, PolicySchema
+from extensions import db
+
+def setup_relationships():
+    # Set up the TimeLog relationship for Project
+    Project.time_logs = db.relationship('TimeLog', backref='project', lazy=True, cascade='all, delete-orphan')
+
+# Call the setup function after all imports
+setup_relationships()
 
 __all__ = [
     'Deliverable', 'DeliverableSchema',
