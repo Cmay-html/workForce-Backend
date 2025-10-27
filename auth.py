@@ -7,14 +7,6 @@ from models import User
 # Initialize JWT manager (configured in app.py)
 jwt = JWTManager()
 
-# Custom claim to include user role
-@jwt.user_claims_loader
-def add_claims_to_access_token(identity):
-    user = User.query.get(identity)
-    if user:
-        return {'role': user.role}
-    return {'role': 'guest'}
-
 # Protect routes with admin role
 def admin_required():
     def wrapper(fn):
@@ -29,7 +21,7 @@ def admin_required():
         return decorator
     return wrapper
 
-# Create JWT token
+# Create JWT token with role claim
 def create_token(user):
     additional_claims = {'role': user.role}
     return create_access_token(identity=user.id, additional_claims=additional_claims)
