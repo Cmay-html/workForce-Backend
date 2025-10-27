@@ -1,6 +1,6 @@
 from extensions import db
 from datetime import datetime, timezone
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class Review(db.Model):
     __tablename__ = 'reviews'
@@ -21,3 +21,8 @@ class Review(db.Model):
             'comment': self.comment,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+class ReviewSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Review
+        load_instance = True

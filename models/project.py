@@ -1,6 +1,6 @@
 from extensions import db
 from datetime import datetime, timezone
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class Project(db.Model):
     __tablename__ = 'projects'
@@ -33,3 +33,9 @@ class Project(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
+
+class ProjectSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Project
+        load_instance = True
+        include_relationships = True  # Include related objects (e.g., milestones)

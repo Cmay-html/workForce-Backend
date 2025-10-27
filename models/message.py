@@ -1,6 +1,6 @@
 from extensions import db
 from datetime import datetime, timezone
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class Message(db.Model):
     __tablename__ = 'messages'
@@ -25,3 +25,8 @@ class Message(db.Model):
             'attachment_url': self.attachment_url,
             'is_approved': self.is_approved
         }
+
+class MessageSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Message
+        load_instance = True

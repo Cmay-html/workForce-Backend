@@ -2,7 +2,7 @@ from extensions import db
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -38,6 +38,10 @@ class User(db.Model):
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
+class UserSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = User
+        load_instance = True
 
 class ClientProfile(db.Model):
     __tablename__ = 'client_profiles'
@@ -64,7 +68,11 @@ class ClientProfile(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
-    
+
+class ClientProfileSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = ClientProfile
+        load_instance = True
 
 class FreelancerProfile(db.Model):
     __tablename__ = 'freelancer_profiles'
@@ -94,4 +102,7 @@ class FreelancerProfile(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
-
+class FreelancerProfileSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = FreelancerProfile
+        load_instance = True
