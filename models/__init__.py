@@ -16,6 +16,9 @@ from extensions import db
 def setup_relationships():
     # Set up the TimeLog relationship for Project
     Project.time_logs = db.relationship('TimeLog', backref='project', lazy=True, cascade='all, delete-orphan')
+    # Set up the ClientProfile and FreelancerProfile relationships for User
+    User.client_profile = db.relationship('ClientProfile', backref=db.backref('user', uselist=False), uselist=False)
+    User.freelancer_profile = db.relationship('FreelancerProfile', backref=db.backref('user', uselist=False), uselist=False)
 
 # Call the setup function after all imports
 setup_relationships()

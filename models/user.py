@@ -15,9 +15,8 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
 
-    # One-to-one relationships to client and freelancer profiles
-    client_profile = db.relationship('ClientProfile', backref=db.backref('user', uselist=False), uselist=False)
-    freelancer_profile = db.relationship('FreelancerProfile', backref=db.backref('user', uselist=False), uselist=False)
+    # Relationships (deferred to avoid circular import)
+    # client_profile and freelancer_profile will be set up in __init__.py
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
