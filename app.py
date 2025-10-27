@@ -1,64 +1,61 @@
+# app.py
 from flask import Flask
 from flask_restx import Api
-from extensions import db, jwt
-from flask_cors import CORS
-from flask_migrate import Migrate
-from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, TimeLog, User, FreelancerProfile, ClientProfile
-from routes.receipts import register_routes as register_receipts
-from flask_cors import CORS
-from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from extensions import db
-from routes.auth import auth_ns
-from routes.freelance import freelance_ns
+from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+import logging
+
+# Your routes
+from routes.freelancer import register_routes as register_freelancer
+from routes.payments import register_routes as register_payments
+
+# Other team routes
+from routes.applications import register_routes as register_applications
+from routes.auth import auth_ns
+from routes.invoices import register_routes as register_invoices
+from routes.receipts import register_routes as register_receipts
+
+# Core extensions
+from extensions import db, migrate
 
 # Load environment variables
 load_dotenv()
 
-def create_app():
-    app = Flask(__name__)
+# Initialize Flask app
+app = Flask(__name__)
 
-    # Configure from environment variables
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///app.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key')
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 900  # 15 minutes
-    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = 2592000  # 30 days
+# Configuration
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'bd6f47d5fbe6130531225d993ce47f56')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['FLASK_SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your_flask_secret_key')
 
-    # Initialize extensions
-    db.init_app(app)
-    jwt.init_app(app)
-    CORS(app)
-    Migrate(app, db)
-    JWTManager(app)
-    Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
+# Initialize extensions
+jwt = JWTManager(app)
+CORS(app)
+db.init_app(app)
+migrate.init_app(app, db)
 
-    # Initialize API
-    api = Api(app, prefix='/api', doc='/docs', title='Freelance Platform API')
-    api.add_namespace(auth_ns)
-    api.add_namespace(freelance_ns)
+# Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    # Register consolidated client routes
-    from routes.projects import api as projects_ns
-    from routes.milestone import api as milestones_ns
-    from routes.reviews import api as reviews_ns
+# Initialize API
+api = Api(
+    app,
+    title='Kazi Flow API',
+    description='Freelancer and Client APIs',
+    security='Bearer'
+)
 
-    api.add_namespace(projects_ns, path='/api/projects')
-    api.add_namespace(milestones_ns, path='/api/milestones')
-    api.add_namespace(reviews_ns, path='/api/reviews')
-
-    # Register routes
-    register_payments(api)
-
-    return app
+# Register namespaces
+register_applications(api.namespace('applications', description='Application Management'))
+api.add_namespace(auth_ns, path='/auth')
+register_invoices(api.namespace('invoices', description='Invoice Management'))
+register_receipts(api.namespace('freelancer/payments', description='Freelancer Payment History'))
+register_payments(api.namespace('client/payments', description='Client Payment Operations'))
+register_freelancer(api.namespace('freelancer', description='Freelancer Journey'))
 
 if __name__ == '__main__':
-    app = create_app()
-    with app.app_context():
-        db.create_all()  # Create database tables
     app.run(debug=True)

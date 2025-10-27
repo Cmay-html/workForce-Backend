@@ -6,7 +6,7 @@ from models import User, FreelancerProfile
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from http import HTTPStatus
-from utils.validators import is_valid_role
+# from utils.validators import is_valid_role  # Commented out as utils doesn't exist
 import logging
 
 # Configure logging
@@ -46,7 +46,8 @@ class Signup(Resource):
             return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
 
         # Validate role
-        if not is_valid_role(data['role']):
+        # if not is_valid_role(data['role']):  # Commented out as validator doesn't exist
+        if data['role'] not in ['freelancer', 'client']:
             logger.error(f"Invalid role: {data['role']}")
             return {'message': 'Invalid role. Must be freelancer or client'}, HTTPStatus.BAD_REQUEST
 
