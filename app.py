@@ -1,7 +1,7 @@
 # app.py
 from flask import Flask
 from flask_restx import Api
-from extensions import db, migrate, jwt, api
+from extensions import db, migrate, jwt, api,ma
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -18,7 +18,8 @@ def create_app(config=DevConfig):
     CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})  
     migrate.init_app(app, db)  
     api.init_app(app) 
-    jwt.init_app(app)   
+    jwt.init_app(app)
+    ma.init_app(app)   
     mail.init_app(app)      
     init_routes()
     return app

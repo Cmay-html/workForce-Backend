@@ -1,5 +1,5 @@
-from flask import request, jsonify
-from flask_sqlalchemy import Pagination  # Import Pagination type hint
+# utils.py
+from flask import request
 from flask_mail import Mail, Message
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -7,7 +7,13 @@ import os
 
 # Pagination utility
 def paginate_query(pagination, schema):
+    """
+    Takes a SQLAlchemy pagination object and a Marshmallow schema,
+    and returns a serializable dictionary.
+    """
     items = schema.dump(pagination.items)
+    # ✅ This function MUST return a dictionary, NOT a jsonify() response.
+    # Flask-RESTX handles the JSON conversion automatically in the route.
     return {
         'items': items,
         'total': pagination.total,
