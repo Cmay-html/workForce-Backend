@@ -1,4 +1,3 @@
-# utils.py
 from flask import request
 from flask_mail import Mail, Message
 from flask import current_app
@@ -9,11 +8,10 @@ import os
 def paginate_query(pagination, schema):
     """
     Takes a SQLAlchemy pagination object and a Marshmallow schema,
-    and returns a serializable dictionary.
+    and returns a serializable dictionary. Flask-RESTX handles the
+    final JSON conversion in the route.
     """
     items = schema.dump(pagination.items)
-    # ✅ This function MUST return a dictionary, NOT a jsonify() response.
-    # Flask-RESTX handles the JSON conversion automatically in the route.
     return {
         'items': items,
         'total': pagination.total,

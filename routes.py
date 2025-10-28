@@ -26,7 +26,7 @@ user_model = admin_ns.model('User', {
 admin_user_model = admin_ns.model('AdminUser', {
     'email': fields.String(required=True),
     'password': fields.String(required=True),
-    'role': fields.String(required=False, enum=['client', 'freelancer', 'admin']),
+    'role': fields.String(required=False, enum=['client', 'freelancer', 'admin'], default='client'),
     'is_verified': fields.Boolean()
 })
 
@@ -168,7 +168,7 @@ policy_model = admin_ns.model('Policy', {
 
 # Model used when resolving a dispute (only resolution required)
 dispute_resolution_model = admin_ns.model('DisputeResolution', {
-    'resolution': fields.String(required=True)
+    'resolution': fields.String(required=False, default='')
 })
 
 def init_routes():
@@ -326,7 +326,7 @@ class AdminDisputeResolve(Resource):
     def put(self, dispute_id):
         dispute = Dispute.query.get_or_404(dispute_id)
         data = request.json
-        dispute.resolution = data.get('resolution')
+        dispute.resolution = data.get('resolution', '')
         dispute.status = 'resolved'
         dispute.resolved_at = datetime.utcnow()
         db.session.commit()

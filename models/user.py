@@ -1,22 +1,18 @@
-from extensions import db
+# models/user.py
+from extensions import db, ma
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class User(db.Model):
     __tablename__ = 'users'
-
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     is_verified = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
-
-    # Relationships (deferred to avoid circular import)
-    # client_profile and freelancer_profile will be set up in __init__.py
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -27,24 +23,8 @@ class User(db.Model):
     def generate_token(self):
         return create_access_token(identity=self.id)
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'email': self.email,
-            'role': self.role,
-            'is_verified': self.is_verified,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
-        }
-
-class UserSchema(SQLAlchemyAutoSchema):
-    class Meta:
-        model = User
-        load_instance = True
-
 class ClientProfile(db.Model):
     __tablename__ = 'client_profiles'
-
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     company_name = db.Column(db.String(100))
@@ -52,30 +32,11 @@ class ClientProfile(db.Model):
     bio = db.Column(db.Text)
     website = db.Column(db.String(200))
     profile_picture_uri = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'company_name': self.company_name,
-            'industry': self.industry,
-            'bio': self.bio,
-            'website': self.website,
-            'profile_picture_uri': self.profile_picture_uri,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
-
-class ClientProfileSchema(SQLAlchemyAutoSchema):
-    class Meta:
-        model = ClientProfile
-        load_instance = True
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 class FreelancerProfile(db.Model):
     __tablename__ = 'freelancer_profiles'
-
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     hourly_rate = db.Column(db.Numeric(10, 2))
@@ -83,25 +44,22 @@ class FreelancerProfile(db.Model):
     experience = db.Column(db.Text)
     portfolio_links = db.Column(db.Text)
     profile_picture_uri = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    # many-to-many with skills will be defined in skill models
+# Corrected Schemas
+class UserSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = User
+        load_instance = True
+        fields = ("id", "email", "role")
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'hourly_rate': float(self.hourly_rate) if self.hourly_rate is not None else None,
-            'bio': self.bio,
-            'experience': self.experience,
-            'portfolio_links': self.portfolio_links,
-            'profile_picture_uri': self.profile_picture_uri,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
+class ClientProfileSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = ClientProfile
+        load_instance = True
 
-class FreelancerProfileSchema(SQLAlchemyAutoSchema):
+class FreelancerProfileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = FreelancerProfile
         load_instance = True
