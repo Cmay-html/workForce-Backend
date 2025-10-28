@@ -1,3 +1,5 @@
+# seed.py
+
 from app import create_app
 from extensions import db
 from models import User, ClientProfile, FreelancerProfile, Project, Milestone, Deliverable, Invoice, Payment, Message, Review, Skill, FreelancerSkill, TimeLog, Dispute, Policy
@@ -15,8 +17,11 @@ with app.app_context():
     db.session.query(Payment).delete()
     db.session.query(Invoice).delete()
     db.session.query(Deliverable).delete()
+    
+    # CORRECTED ORDER: Delete Disputes before Milestones
+    db.session.query(Dispute).delete() 
     db.session.query(Milestone).delete()
-    db.session.query(Dispute).delete()
+
     db.session.query(Project).delete()
     db.session.query(ClientProfile).delete()
     db.session.query(FreelancerProfile).delete()
@@ -25,6 +30,7 @@ with app.app_context():
     db.session.query(User).delete()  # Delete users last
     db.session.commit()
 
+    # ... (the rest of your seeding code is perfectly fine) ...
     # Seed Users
     admin_user = User(email='admin@example.com', role='admin')
     admin_user.set_password('adminpass')
@@ -120,7 +126,7 @@ with app.app_context():
     # Seed TimeLog
     time_log = TimeLog(
         project_id=project.id,
-        freelancer_id=freelancer_profile.id,  # Changed from freelancer_profile.user_id to freelancer_profile.id
+        freelancer_id=freelancer_profile.id,
         start_time=datetime.now(timezone.utc) - timedelta(hours=2),
         end_time=datetime.now(timezone.utc)
     )

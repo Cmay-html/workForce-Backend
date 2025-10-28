@@ -1,3 +1,4 @@
+# routes.py
 from flask_restx import Namespace, Resource, fields, abort
 from extensions import api, db
 from models import Deliverable, Invoice, Message, Milestone, Payment, ProjectApplication, Project, Review, Skill, FreelancerSkill, TimeLog, User, FreelancerProfile, ClientProfile, Dispute, Policy
@@ -13,13 +14,37 @@ auth_ns = Namespace('auth', description='Authentication')
 
 # Swagger Models
 user_model = admin_ns.model('User', {
+    'id': fields.Integer(readonly=True),
     'email': fields.String(required=True),
     'password': fields.String(required=True),
     'role': fields.String(required=True, enum=['client', 'freelancer', 'admin']),
+    'is_verified': fields.Boolean(),
+    'last_login': fields.DateTime()
+})
+
+# Model for admin-created users (requires email & password, role optional)
+admin_user_model = admin_ns.model('AdminUser', {
+    'email': fields.String(required=True),
+    'password': fields.String(required=True),
+    'role': fields.String(required=False, enum=['client', 'freelancer', 'admin']),
     'is_verified': fields.Boolean()
 })
 
+# Auth models (separate from admin user model so login/register don't require admin-only fields)
+login_model = auth_ns.model('Login', {
+    'email': fields.String(required=True),
+    'password': fields.String(required=True)
+})
+
+register_model = auth_ns.model('Register', {
+    'email': fields.String(required=True),
+    'password': fields.String(required=True),
+    'role': fields.String(required=False, enum=['client', 'freelancer', 'admin']),
+    'is_verified': fields.Boolean(required=False)
+})
+
 client_profile_model = admin_ns.model('ClientProfile', {
+    'id': fields.Integer(readonly=True),
     'user_id': fields.Integer(required=True),
     'company_name': fields.String(),
     'industry': fields.String(),
@@ -29,6 +54,7 @@ client_profile_model = admin_ns.model('ClientProfile', {
 })
 
 freelancer_profile_model = admin_ns.model('FreelancerProfile', {
+    'id': fields.Integer(readonly=True),
     'user_id': fields.Integer(required=True),
     'hourly_rate': fields.Float(),
     'bio': fields.String(),
@@ -38,6 +64,7 @@ freelancer_profile_model = admin_ns.model('FreelancerProfile', {
 })
 
 project_model = admin_ns.model('Project', {
+    'id': fields.Integer(readonly=True),
     'title': fields.String(required=True),
     'description': fields.String(),
     'budget': fields.Float(),
@@ -47,12 +74,14 @@ project_model = admin_ns.model('Project', {
 })
 
 project_application_model = admin_ns.model('ProjectApplication', {
+    'id': fields.Integer(readonly=True),
     'project_id': fields.Integer(required=True),
     'freelancer_id': fields.Integer(required=True),
     'status': fields.String()
 })
 
 milestone_model = admin_ns.model('Milestone', {
+    'id': fields.Integer(readonly=True),
     'project_id': fields.Integer(required=True),
     'title': fields.String(required=True),
     'description': fields.String(),
@@ -62,6 +91,7 @@ milestone_model = admin_ns.model('Milestone', {
 })
 
 deliverable_model = admin_ns.model('Deliverable', {
+    'id': fields.Integer(readonly=True),
     'milestone_id': fields.Integer(required=True),
     'file_url': fields.String(),
     'link': fields.String(),
@@ -69,12 +99,14 @@ deliverable_model = admin_ns.model('Deliverable', {
 })
 
 invoice_model = admin_ns.model('Invoice', {
+    'id': fields.Integer(readonly=True),
     'milestone_id': fields.Integer(required=True),
     'amount': fields.Float(),
     'status': fields.String()
 })
 
 payment_model = admin_ns.model('Payment', {
+    'id': fields.Integer(readonly=True),
     'invoice_id': fields.Integer(required=True),
     'client_id': fields.Integer(required=True),
     'transaction_id': fields.String(),
@@ -83,6 +115,7 @@ payment_model = admin_ns.model('Payment', {
 })
 
 message_model = admin_ns.model('Message', {
+    'id': fields.Integer(readonly=True),
     'project_id': fields.Integer(required=True),
     'sender_id': fields.Integer(required=True),
     'receiver_id': fields.Integer(required=True),
@@ -92,6 +125,7 @@ message_model = admin_ns.model('Message', {
 })
 
 review_model = admin_ns.model('Review', {
+    'id': fields.Integer(readonly=True),
     'project_id': fields.Integer(required=True),
     'reviewer_id': fields.Integer(required=True),
     'rating': fields.Integer(),
@@ -99,15 +133,18 @@ review_model = admin_ns.model('Review', {
 })
 
 skill_model = admin_ns.model('Skill', {
+    'id': fields.Integer(readonly=True),
     'name': fields.String(required=True)
 })
 
 freelancer_skill_model = admin_ns.model('FreelancerSkill', {
+    'id': fields.Integer(readonly=True),
     'freelancer_profile_id': fields.Integer(required=True),
     'skill_id': fields.Integer(required=True)
 })
 
 time_log_model = admin_ns.model('TimeLog', {
+    'id': fields.Integer(readonly=True),
     'project_id': fields.Integer(required=True),
     'freelancer_id': fields.Integer(required=True),
     'start_time': fields.DateTime(),
@@ -115,6 +152,7 @@ time_log_model = admin_ns.model('TimeLog', {
 })
 
 dispute_model = admin_ns.model('Dispute', {
+    'id': fields.Integer(readonly=True),
     'milestone_id': fields.Integer(required=True),
     'description': fields.String(),
     'resolution': fields.String(),
@@ -123,8 +161,14 @@ dispute_model = admin_ns.model('Dispute', {
 })
 
 policy_model = admin_ns.model('Policy', {
+    'id': fields.Integer(readonly=True),
     'name': fields.String(required=True),
     'content': fields.String()
+})
+
+# Model used when resolving a dispute (only resolution required)
+dispute_resolution_model = admin_ns.model('DisputeResolution', {
+    'resolution': fields.String(required=True)
 })
 
 def init_routes():
@@ -134,9 +178,11 @@ def init_routes():
 # Authentication Routes
 @auth_ns.route('/register')
 class Register(Resource):
-    @auth_ns.expect(user_model, validate=True)
+    @auth_ns.expect(register_model, validate=True)
     def post(self):
         data = request.json
+        if User.query.filter_by(email=data['email']).first():
+            abort(400, message='Email already registered')
         user = User(email=data['email'])
         user.set_password(data['password'])
         user.role = data.get('role', 'client')
@@ -149,20 +195,20 @@ class Register(Resource):
 
 @auth_ns.route('/login')
 class Login(Resource):
+    @auth_ns.expect(login_model, validate=True)
     def post(self):
         data = request.json
         user = User.query.filter_by(email=data['email']).first()
         if user and user.check_password(data['password']):
             token = create_token(user)
             user.last_login = datetime.utcnow()
-            db.session.add(user)
             db.session.commit()
-            return {'token': token}
-        return {'error': 'Invalid credentials'}, 401
+            return {'token': token}, 200
+        abort(401, message='Invalid credentials')
 
 # Admin CRUD Routes
 models = {
-    'users': (User, UserSchema, user_model),
+    'users': (User, UserSchema, admin_user_model),
     'client_profiles': (ClientProfile, ClientProfileSchema, client_profile_model),
     'freelancer_profiles': (FreelancerProfile, FreelancerProfileSchema, freelancer_profile_model),
     'projects': (Project, ProjectSchema, project_model),
@@ -196,7 +242,34 @@ for endpoint, (model, schema, swagger_model) in models.items():
         @admin_required()
         def post(self):
             data = request.json
-            instance = model(**{k: v for k, v in data.items() if k in model.__table__.columns.keys()})
+            # Handle password hashing for User model
+            if model == User:
+                # If frontend provides a password, use it. Otherwise generate a temporary one.
+                if 'password' in data and data['password']:
+                    instance = model(email=data['email'])
+                    instance.set_password(data['password'])
+                    for key, value in data.items():
+                        if key not in ['password'] and hasattr(instance, key):
+                            setattr(instance, key, value)
+                    db.session.add(instance)
+                    db.session.commit()
+                    return schema().dump(instance), 201
+                else:
+                    # Create user with a generated temporary password and return it to the admin
+                    import secrets
+                    temp_pw = secrets.token_urlsafe(8)
+                    instance = model(email=data.get('email'))
+                    instance.set_password(temp_pw)
+                    for key, value in data.items():
+                        if key not in ['password'] and hasattr(instance, key):
+                            setattr(instance, key, value)
+                    db.session.add(instance)
+                    db.session.commit()
+                    result = schema().dump(instance)
+                    result['generated_password'] = temp_pw
+                    return result, 201
+            else:
+                instance = model(**{k: v for k, v in data.items() if hasattr(model, k)})
             db.session.add(instance)
             db.session.commit()
             return schema().dump(instance), 201
@@ -215,6 +288,9 @@ for endpoint, (model, schema, swagger_model) in models.items():
         def put(self, id):
             instance = model.query.get_or_404(id)
             data = request.json
+            if model == User and 'password' in data:
+                instance.set_password(data['password'])
+                del data['password']  # Avoid setting password as plain text attribute
             for key, value in data.items():
                 if hasattr(instance, key):
                     setattr(instance, key, value)
@@ -229,7 +305,7 @@ for endpoint, (model, schema, swagger_model) in models.items():
             db.session.commit()
             return {'message': f'{endpoint[:-1] if endpoint.endswith("s") else endpoint} deleted'}, 200
 
-# Message Moderation (Real-time Approval)
+# Message Moderation
 @admin_ns.route('/messages/<int:message_id>/approve')
 class AdminMessageApprove(Resource):
     @admin_ns.doc('approve_message')
@@ -245,7 +321,7 @@ class AdminMessageApprove(Resource):
 @admin_ns.route('/disputes/<int:dispute_id>/resolve')
 class AdminDisputeResolve(Resource):
     @admin_ns.doc('resolve_dispute')
-    @admin_ns.expect(dispute_model, validate=True)
+    @admin_ns.expect(dispute_resolution_model, validate=True)
     @admin_required()
     def put(self, dispute_id):
         dispute = Dispute.query.get_or_404(dispute_id)
@@ -266,7 +342,7 @@ class AdminPolicyUpdate(Resource):
     def put(self, policy_id):
         policy = Policy.query.get_or_404(policy_id)
         data = request.json
-        policy.content = data.get('content')
+        policy.content = data.get('content', policy.content)
         db.session.commit()
         return PolicySchema().dump(policy)
 

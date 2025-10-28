@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask
 from flask_restx import Api
 from extensions import db, migrate, jwt, api
@@ -14,7 +15,7 @@ def create_app(config=DevConfig):
     app = Flask(__name__)
     app.config.from_object(config)
     db.init_app(app)
-    CORS(app)
+    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})  
     migrate.init_app(app, db)  
     api.init_app(app) 
     jwt.init_app(app)   
@@ -24,4 +25,4 @@ def create_app(config=DevConfig):
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
