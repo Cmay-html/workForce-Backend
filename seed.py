@@ -1,9 +1,9 @@
 from app import create_app
-from datetime import datetime,timezone,timedelta
+from datetime import datetime, timezone, timedelta
 from config import DevConfig
 from extensions import db
 from models import (
-    User, Skill, ClientProfile, FreelancerProfile,FreelancerSkill,
+    User, Skill, ClientProfile, FreelancerProfile, FreelancerSkill,
     Project, Milestone, Invoice, Payment, ProjectApplication,
     TimeLog, Deliverable, Review, Message
 )
@@ -14,17 +14,13 @@ def seed_data():
         try:
             # Skills
             skill_names = ['Python', 'JavaScript', 'React', 'SQL', 'UI/UX Design', 'Node.js']
-
-            # Query existing names
             existing = {s.name for s in db.session.query(Skill).filter(Skill.name.in_(skill_names)).all()}
-
-            # Create only missing skills
             to_create = [Skill(name=name) for name in skill_names if name not in existing]
             if to_create:
                 db.session.add_all(to_create)
                 db.session.commit()
 
-            # Users with proper password hashing
+            # Users
             users = {
                 'client': User(
                     email='client@example.com',
@@ -40,7 +36,7 @@ def seed_data():
                 )
             }
             for user in users.values():
-                user.set_password('password123')  # Using proper password hashing
+                user.set_password('password123')
             db.session.add_all(users.values())
             db.session.commit()
 
@@ -52,7 +48,8 @@ def seed_data():
                 bio='Innovative tech solutions provider',
                 website='https://acme.example.com',
                 profile_picture_uri='https://acme.example.com/logo.png',
-                created_at=datetime.now(timezone.utc)
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             freelancer_profile = FreelancerProfile(
                 user_id=users['freelancer'].id,
@@ -61,7 +58,8 @@ def seed_data():
                 experience='5 years freelance experience',
                 portfolio_links='["https://portfolio.example.com", "https://github.com/example"]',
                 profile_picture_uri='https://portfolio.example.com/profile.jpg',
-                created_at=datetime.now(timezone.utc)
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             db.session.add_all([client_profile, freelancer_profile])
             db.session.commit()
@@ -83,7 +81,7 @@ def seed_data():
                 title='Website Development',
                 description='Develop a responsive company website',
                 budget=5000.00,
-                status='in_progress',  # Using correct enum value
+                status='in_progress',
                 client_id=client_profile.id,
                 freelancer_id=freelancer_profile.id,
                 created_at=datetime.now(timezone.utc)
@@ -91,7 +89,7 @@ def seed_data():
             db.session.add(project)
             db.session.commit()
 
-            # Project Application (showing how freelancer was selected)
+            # Project Application
             application = ProjectApplication(
                 project_id=project.id,
                 freelancer_id=freelancer_profile.id,
@@ -101,7 +99,7 @@ def seed_data():
             db.session.add(application)
             db.session.commit()
 
-            # Milestones with Deliverables and Invoices
+            # Milestones
             milestones = [
                 Milestone(
                     project_id=project.id,
@@ -123,7 +121,7 @@ def seed_data():
             db.session.add_all(milestones)
             db.session.commit()
 
-            # First milestone's deliverable
+            # Deliverable for first milestone
             deliverable = Deliverable(
                 milestone_id=milestones[0].id,
                 file_url='https://example.com/files/design-draft.pdf',
@@ -148,9 +146,11 @@ def seed_data():
             payment = Payment(
                 invoice_id=invoice.id,
                 client_id=client_profile.id,
+                freelancer_id=freelancer_profile.id,  # Added to match schema
                 transaction_id='txn_123456',
                 amount=1500.00,
                 paid_at=datetime.now(timezone.utc),
+                created_at=datetime.now(timezone.utc),  # Added to match schema
                 status='completed'
             )
             db.session.add(payment)
@@ -196,7 +196,7 @@ def seed_data():
             db.session.add_all(messages)
             db.session.commit()
 
-            # Initial project review
+            # Review
             review = Review(
                 project_id=project.id,
                 reviewer_id=users['client'].id,

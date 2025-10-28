@@ -18,9 +18,8 @@ class Payment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     status = db.Column(db.String(50))
 
-    freelancer = db.relationship("FreelancerProfile", backref="payments")
-    client = db.relationship("ClientProfile", backref="payments")
-    invoices = db.relationship("Invoice", backref="payments")
+    # relationships are defined on the profile models to avoid duplicate backref errors
+    # access payments from profiles via ClientProfile.payments and FreelancerProfile.payments
 
     def to_dict(self):
         return {
