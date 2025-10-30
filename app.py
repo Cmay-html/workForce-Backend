@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask
+from flask import Flask, request
 from flask_restx import Api
 from extensions import db, migrate, jwt, api,ma
 from flask_jwt_extended import JWTManager
@@ -22,6 +22,19 @@ def create_app(config=DevConfig):
     ma.init_app(app)   
     mail.init_app(app)      
     init_routes()
+
+    @app.before_request
+    def log_request_info():
+        app.logger.debug('Headers: %s', request.headers)
+        app.logger.debug('Body: %s', request.get_data())
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        import traceback
+        app.logger.error('Exception: %s', str(e))
+        app.logger.error('Traceback: %s', traceback.format_exc())
+        return {"error": str(e), "traceback": traceback.format_exc()}, 500
+
     return app
 
 if __name__ == '__main__':

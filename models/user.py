@@ -1,4 +1,3 @@
-# models/user.py
 from extensions import db, ma
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,6 +12,9 @@ class User(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
+
+    client_profile = db.relationship('ClientProfile', backref=db.backref('user', uselist=False), uselist=False, cascade="all, delete-orphan")
+    freelancer_profile = db.relationship('FreelancerProfile', backref=db.backref('user', uselist=False), uselist=False, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -47,19 +49,23 @@ class FreelancerProfile(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-# Corrected Schemas
 class UserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = User
         load_instance = True
-        fields = ("id", "email", "role")
+        include_relationships = True
+        include_fk = True
 
 class ClientProfileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ClientProfile
         load_instance = True
+        include_relationships = True
+        include_fk = True
 
 class FreelancerProfileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = FreelancerProfile
         load_instance = True
+        include_relationships = True
+        include_fk = True

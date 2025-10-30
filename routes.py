@@ -34,7 +34,7 @@ def init_routes():
     api.add_namespace(auth_ns, path='/api/auth')
 
 
-# --- Authentication Routes ---
+#Authentication Routes
 @auth_ns.route('/login')
 class Login(Resource):
     @auth_ns.expect(login_model, validate=True)
@@ -49,7 +49,7 @@ class Login(Resource):
         return {'message': 'Invalid credentials'}, 401
 
 
-# --- Corrected Admin CRUD Route Generation ---
+# Corrected Admin CRUD Route Generation 
 
 # A dictionary mapping API endpoints to their respective Model and Schema
 MODELS_CRUD = {
@@ -67,20 +67,20 @@ MODELS_CRUD = {
 # solving the late binding closure problem.
 def create_admin_resource(model_cls, schema_cls):
     class AdminList(Resource):
-        @admin_required()
+        @admin_required
         def get(self):
             """Lists all items for a given model."""
             pagination = model_cls.query.paginate(page=request.args.get('page', 1, type=int), per_page=10, error_out=False)
             return paginate_query(pagination, schema_cls(many=True))
 
     class AdminResource(Resource):
-        @admin_required()
+        @admin_required
         def get(self, id):
             """Gets a single item by ID."""
             instance = model_cls.query.get_or_404(id)
             return schema_cls().dump(instance)
 
-        @admin_required()
+        @admin_required
         def delete(self, id):
             """Deletes an item by ID."""
             instance = model_cls.query.get_or_404(id)
@@ -104,7 +104,7 @@ for endpoint, (model_class, schema_class) in MODELS_CRUD.items():
 class UserActions(Resource):
     # This class adds the custom POST method to the /users endpoint
     @admin_ns.expect(admin_user_model, validate=True)
-    @admin_required()
+    @admin_required
     def post(self):
         """Creates a new user."""
         data = request.json
@@ -121,7 +121,7 @@ class UserActions(Resource):
 @admin_ns.route('/disputes/<int:dispute_id>/resolve')
 class AdminDisputeResolve(Resource):
     @admin_ns.expect(dispute_resolution_model, validate=True)
-    @admin_required()
+    @admin_required
     def put(self, dispute_id):
         """Resolves a dispute."""
         dispute = Dispute.query.get_or_404(dispute_id)
@@ -135,7 +135,7 @@ class AdminDisputeResolve(Resource):
 
 @admin_ns.route('/analytics')
 class AdminAnalytics(Resource):
-    @admin_required()
+    @admin_required
     def get(self):
         """Gets key analytics data."""
         total_users = db.session.query(func.count(User.id)).scalar()
