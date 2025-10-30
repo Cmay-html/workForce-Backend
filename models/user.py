@@ -13,17 +13,32 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
 
-    client_profile = db.relationship('ClientProfile', backref=db.backref('user', uselist=False), uselist=False, cascade="all, delete-orphan")
-    freelancer_profile = db.relationship('FreelancerProfile', backref=db.backref('user', uselist=False), uselist=False, cascade="all, delete-orphan")
+    # One-to-one relationships to profiles
+    client_profile = db.relationship(
+        'ClientProfile', uselist=False, back_populates='user', cascade='all, delete-orphan')
+    freelancer_profile = db.relationship(
+        'FreelancerProfile', uselist=False, back_populates='user', cascade='all, delete-orphan')
 
-    def set_password(self, password):
+    def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
     def generate_token(self):
         return create_access_token(identity=self.id)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'role': self.role,
+            'is_verified': self.is_verified,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+        }
+
+>>>>>>> origin/dev
 
 class ClientProfile(db.Model):
     __tablename__ = 'client_profiles'
@@ -34,8 +49,29 @@ class ClientProfile(db.Model):
     bio = db.Column(db.Text)
     website = db.Column(db.String(200))
     profile_picture_uri = db.Column(db.String(255))
+<<<<<<< HEAD
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+=======
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime)
+
+    user = db.relationship('User', back_populates='client_profile')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'company_name': self.company_name,
+            'industry': self.industry,
+            'bio': self.bio,
+            'website': self.website,
+            'profile_picture_uri': self.profile_picture_uri,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+>>>>>>> origin/dev
 
 class FreelancerProfile(db.Model):
     __tablename__ = 'freelancer_profiles'
@@ -46,6 +82,7 @@ class FreelancerProfile(db.Model):
     experience = db.Column(db.Text)
     portfolio_links = db.Column(db.Text)
     profile_picture_uri = db.Column(db.String(255))
+<<<<<<< HEAD
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -69,3 +106,22 @@ class FreelancerProfileSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_relationships = True
         include_fk = True
+=======
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime)
+
+    user = db.relationship('User', back_populates='freelancer_profile')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'hourly_rate': float(self.hourly_rate) if self.hourly_rate is not None else None,
+            'bio': self.bio,
+            'experience': self.experience,
+            'portfolio_links': self.portfolio_links,
+            'profile_picture_uri': self.profile_picture_uri,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+>>>>>>> origin/dev
