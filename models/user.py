@@ -38,8 +38,6 @@ class User(db.Model):
             'last_login': self.last_login.isoformat() if self.last_login else None,
         }
 
->>>>>>> origin/dev
-
 class ClientProfile(db.Model):
     __tablename__ = 'client_profiles'
     id = db.Column(db.Integer, primary_key=True)
@@ -49,12 +47,8 @@ class ClientProfile(db.Model):
     bio = db.Column(db.Text)
     website = db.Column(db.String(200))
     profile_picture_uri = db.Column(db.String(255))
-<<<<<<< HEAD
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-=======
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime)
 
     user = db.relationship('User', back_populates='client_profile')
 
@@ -71,8 +65,6 @@ class ClientProfile(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
->>>>>>> origin/dev
-
 class FreelancerProfile(db.Model):
     __tablename__ = 'freelancer_profiles'
     id = db.Column(db.Integer, primary_key=True)
@@ -82,9 +74,23 @@ class FreelancerProfile(db.Model):
     experience = db.Column(db.Text)
     portfolio_links = db.Column(db.Text)
     profile_picture_uri = db.Column(db.String(255))
-<<<<<<< HEAD
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', back_populates='freelancer_profile')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'hourly_rate': float(self.hourly_rate) if self.hourly_rate is not None else None,
+            'bio': self.bio,
+            'experience': self.experience,
+            'portfolio_links': self.portfolio_links,
+            'profile_picture_uri': self.profile_picture_uri,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 class UserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -106,22 +112,3 @@ class FreelancerProfileSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_relationships = True
         include_fk = True
-=======
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime)
-
-    user = db.relationship('User', back_populates='freelancer_profile')
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'hourly_rate': float(self.hourly_rate) if self.hourly_rate is not None else None,
-            'bio': self.bio,
-            'experience': self.experience,
-            'portfolio_links': self.portfolio_links,
-            'profile_picture_uri': self.profile_picture_uri,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
->>>>>>> origin/dev
