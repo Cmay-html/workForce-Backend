@@ -1,6 +1,6 @@
 from extensions import db
 from datetime import datetime, timezone
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class ProjectApplication(db.Model):
     __tablename__ = 'project_applications'
@@ -11,6 +11,10 @@ class ProjectApplication(db.Model):
     status = db.Column(db.String(50))
     applied_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
+    # Define relationships
+    project = db.relationship('Project', backref=db.backref('applications', cascade='all, delete-orphan'))
+    freelancer = db.relationship('FreelancerProfile', backref=db.backref('applications', lazy='dynamic'))
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -19,3 +23,8 @@ class ProjectApplication(db.Model):
             'status': self.status,
             'applied_at': self.applied_at.isoformat() if self.applied_at else None
         }
+
+class ProjectApplicationSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = ProjectApplication
+        load_instance = True

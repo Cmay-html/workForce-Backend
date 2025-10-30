@@ -1,28 +1,32 @@
+# models/__init__.py
+from extensions import db
+
+# Import all models first (without schemas)
+from .user import User, ClientProfile, FreelancerProfile
+from .project import Project
+from .milestone import Milestone
+from .dispute import Dispute
 from .deliverable import Deliverable
 from .invoice import Invoice
-from .message import Message
-from .milestone import Milestone
 from .payment import Payment
-from .project_application import ProjectApplication
-from .project import Project
+from .message import Message
 from .review import Review
 from .skill import Skill, FreelancerSkill
 from .time_log import TimeLog
-from .user import User, FreelancerProfile, ClientProfile
+from .project_application import ProjectApplication
+from .policy import Policy
 
-__all__ = [
-    'Deliverable',
-    'Invoice',
-    'Message',
-    'Milestone',
-    'Payment',
-    'ProjectApplication',
-    'Project',
-    'Review',
-    'Skill',
-    'FreelancerSkill',
-    'TimeLog',
-    'User',
-    'FreelancerProfile',
-    'ClientProfile',
-]
+# Import schemas
+from .user import UserSchema, ClientProfileSchema, FreelancerProfileSchema
+from .project import ProjectSchema
+from .milestone import MilestoneSchema
+from .dispute import DisputeSchema
+from .deliverable import DeliverableSchema
+from .invoice import InvoiceSchema
+from .payment import PaymentSchema
+from .message import MessageSchema
+from .review import ReviewSchema
+from .skill import SkillSchema, FreelancerSkillSchema
+from .time_log import TimeLogSchema
+from .project_application import ProjectApplicationSchema
+from .policy import PolicySchema

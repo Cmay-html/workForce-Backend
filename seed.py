@@ -1,220 +1,117 @@
+# seed.py
+
 from app import create_app
-from datetime import datetime,timezone,timedelta
-from config import DevConfig
 from extensions import db
-from models import (
-    User, Skill, ClientProfile, FreelancerProfile,FreelancerSkill,
-    Project, Milestone, Invoice, Payment, ProjectApplication,
-    TimeLog, Deliverable, Review, Message
-)
+from models import User, ClientProfile, FreelancerProfile, Project, Milestone, Deliverable, Invoice, Payment, Message, Review, Skill, FreelancerSkill, TimeLog, Dispute, Policy
+from datetime import datetime, timezone, timedelta
+import os
+import random
 
-def seed_data():
-    app = create_app(DevConfig)
-    with app.app_context():
-        try:
-            # Skills
-            skill_names = ['Python', 'JavaScript', 'React', 'SQL', 'UI/UX Design', 'Node.js']
+# Create app context
+app = create_app()
+with app.app_context():
+    # Clear existing data in the correct order (dependent tables first)
+    db.session.query(TimeLog).delete()
+    db.session.query(FreelancerSkill).delete()
+    db.session.query(Review).delete()
+    db.session.query(Message).delete()
+    db.session.query(Payment).delete()
+    db.session.query(Invoice).delete()
+    db.session.query(Deliverable).delete()
+    
+    # CORRECTED ORDER: Delete Disputes before Milestones
+    db.session.query(Dispute).delete() 
+    db.session.query(Milestone).delete()
 
-            # Query existing names
-            existing = {s.name for s in db.session.query(Skill).filter(Skill.name.in_(skill_names)).all()}
+    db.session.query(Project).delete()
+    db.session.query(ClientProfile).delete()
+    db.session.query(FreelancerProfile).delete()
+    db.session.query(Skill).delete()
+    db.session.query(Policy).delete()
+    db.session.query(User).delete()  # Delete users last
+    db.session.commit()
 
-            # Create only missing skills
-            to_create = [Skill(name=name) for name in skill_names if name not in existing]
-            if to_create:
-                db.session.add_all(to_create)
-                db.session.commit()
+    # Create an admin user
+    admin_user = User(email='admin@example.com', role='admin')
+    admin_user.set_password('adminpass')
+    db.session.add(admin_user)
+    db.session.commit()
 
-            # Users with proper password hashing
-            users = {
-                'client': User(
-                    email='client@example.com',
-                    role='client',
-                    is_verified=True,
-                    created_at=datetime.now(timezone.utc)
-                ),
-                'freelancer': User(
-                    email='freelancer@example.com',
-                    role='freelancer',
-                    is_verified=True,
-                    created_at=datetime.now(timezone.utc)
-                )
-            }
-            for user in users.values():
-                user.set_password('password123')  # Using proper password hashing
-            db.session.add_all(users.values())
+    # Seed Skills and Policy
+    skills = [Skill(name='Python'), Skill(name='JavaScript'), Skill(name='React'), Skill(name='Django')]
+    db.session.add_all(skills)
+    db.session.add(Policy(name='Payment Policy', content='Payments are due within 30 days'))
+    db.session.commit()
+
+    # Seed 70 users and their profiles (mix of clients and freelancers)
+    client_profiles = []
+    freelancer_profiles = []
+    for i in range(1, 71):
+        role = 'client' if i % 2 == 0 else 'freelancer'
+        user = User(email=f'user{i}@example.com', role=role)
+        user.set_password(f'pass{i}')
+        db.session.add(user)
+        db.session.flush()  # get id without committing
+
+        if role == 'client':
+            cp = ClientProfile(user_id=user.id, company_name=f'ClientCo{i}', industry='Tech')
+            db.session.add(cp)
+            client_profiles.append(cp)
+        else:
+            fp = FreelancerProfile(user_id=user.id, hourly_rate=random.randint(20, 100), bio=f'Freelancer {i}')
+            db.session.add(fp)
+            freelancer_profiles.append(fp)
+
+        # commit every 10 users to avoid large transactions
+        if i % 10 == 0:
             db.session.commit()
 
-            # Profiles
-            client_profile = ClientProfile(
-                user_id=users['client'].id,
-                company_name='Acme Corp',
-                industry='Technology',
-                bio='Innovative tech solutions provider',
-                website='https://acme.example.com',
-                profile_picture_uri='https://acme.example.com/logo.png',
-                created_at=datetime.now(timezone.utc)
-            )
-            freelancer_profile = FreelancerProfile(
-                user_id=users['freelancer'].id,
-                hourly_rate=50.00,
-                bio='Full stack developer specializing in Python and React',
-                experience='5 years freelance experience',
-                portfolio_links='["https://portfolio.example.com", "https://github.com/example"]',
-                profile_picture_uri='https://portfolio.example.com/profile.jpg',
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add_all([client_profile, freelancer_profile])
+    db.session.commit()
+
+    # Ensure we have at least one client and one freelancer
+    if not client_profiles or not freelancer_profiles:
+        raise RuntimeError('Need at least one client and one freelancer to create projects')
+
+    # Seed 70 projects, each with a milestone and a dispute
+    projects = []
+    for i in range(1, 71):
+        client = random.choice(client_profiles)
+        freelancer = random.choice(freelancer_profiles)
+        proj = Project(
+            title=f'Project {i}',
+            description=f'Description for project {i}',
+            budget=round(random.uniform(100.0, 10000.0), 2),
+            status=random.choice(['active', 'pending', 'completed']),
+            client_id=client.id,
+            freelancer_id=freelancer.id,
+            created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 90))
+        )
+        db.session.add(proj)
+        db.session.flush()
+        # one milestone per project
+        m = Milestone(
+            project_id=proj.id,
+            title=f'Milestone 1 for project {i}',
+            description='Auto-generated milestone',
+            due_date=datetime.now(timezone.utc) + timedelta(days=random.randint(1, 30)),
+            amount=round(random.uniform(50.0, proj.budget or 1000.0), 2),
+            status=random.choice(['pending', 'submitted', 'approved'])
+        )
+        db.session.add(m)
+        db.session.flush()
+
+        # dispute for this milestone
+        d = Dispute(
+            milestone_id=m.id,
+            description=f'Auto-generated dispute for project {i}',
+            status=random.choice(['open', 'pending', 'resolved'])
+        )
+        db.session.add(d)
+
+        # commit periodically
+        if i % 10 == 0:
             db.session.commit()
 
-            # Freelancer skills
-            skill_dict = {skill.name: skill for skill in db.session.query(Skill).all()}
-            freelancer_skills = [
-                FreelancerSkill(
-                    freelancer_profile_id=freelancer_profile.id,
-                    skill_id=skill_dict[name].id
-                )
-                for name in ['Python', 'React', 'JavaScript']
-            ]
-            db.session.add_all(freelancer_skills)
-            db.session.commit()
+    db.session.commit()
 
-            # Project
-            project = Project(
-                title='Website Development',
-                description='Develop a responsive company website',
-                budget=5000.00,
-                status='in_progress',  # Using correct enum value
-                client_id=client_profile.id,
-                freelancer_id=freelancer_profile.id,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(project)
-            db.session.commit()
-
-            # Project Application (showing how freelancer was selected)
-            application = ProjectApplication(
-                project_id=project.id,
-                freelancer_id=freelancer_profile.id,
-                status='accepted',
-                applied_at=datetime.now(timezone.utc) - timedelta(days=5)
-            )
-            db.session.add(application)
-            db.session.commit()
-
-            # Milestones with Deliverables and Invoices
-            milestones = [
-                Milestone(
-                    project_id=project.id,
-                    title='Design Phase',
-                    description='Complete UI/UX design',
-                    due_date=datetime.now(timezone.utc) + timedelta(days=25),
-                    amount=1500.00,
-                    status='in_progress'
-                ),
-                Milestone(
-                    project_id=project.id,
-                    title='Development Phase',
-                    description='Build website frontend and backend',
-                    due_date=datetime.now(timezone.utc) + timedelta(days=70),
-                    amount=3500.00,
-                    status='pending'
-                )
-            ]
-            db.session.add_all(milestones)
-            db.session.commit()
-
-            # First milestone's deliverable
-            deliverable = Deliverable(
-                milestone_id=milestones[0].id,
-                file_url='https://example.com/files/design-draft.pdf',
-                link='https://figma.com/design/draft',
-                submitted_at=datetime.now(timezone.utc),
-                status='under_review'
-            )
-            db.session.add(deliverable)
-            db.session.commit()
-
-            # Invoice for first milestone
-            invoice = Invoice(
-                milestone_id=milestones[0].id,
-                amount=1500.00,
-                generated_at=datetime.now(timezone.utc),
-                status='pending'
-            )
-            db.session.add(invoice)
-            db.session.commit()
-
-            # Payment for the invoice
-            payment = Payment(
-                invoice_id=invoice.id,
-                client_id=client_profile.id,
-                transaction_id='txn_123456',
-                amount=1500.00,
-                paid_at=datetime.now(timezone.utc),
-                status='completed'
-            )
-            db.session.add(payment)
-            db.session.commit()
-
-            # Time logs
-            time_logs = [
-                TimeLog(
-                    project_id=project.id,
-                    freelancer_id=freelancer_profile.id,
-                    start_time=datetime.now(timezone.utc) - timedelta(days=1, hours=4),
-                    end_time=datetime.now(timezone.utc) - timedelta(days=1)
-                ),
-                TimeLog(
-                    project_id=project.id,
-                    freelancer_id=freelancer_profile.id,
-                    start_time=datetime.now(timezone.utc) - timedelta(hours=5),
-                    end_time=datetime.now(timezone.utc) - timedelta(hours=1)
-                )
-            ]
-            db.session.add_all(time_logs)
-            db.session.commit()
-
-            # Messages
-            messages = [
-                Message(
-                    project_id=project.id,
-                    sender_id=users['client'].id,
-                    receiver_id=users['freelancer'].id,
-                    content='Can we schedule a progress review?',
-                    timestamp=datetime.now(timezone.utc) - timedelta(hours=24),
-                    is_approved=True
-                ),
-                Message(
-                    project_id=project.id,
-                    sender_id=users['freelancer'].id,
-                    receiver_id=users['client'].id,
-                    content='Sure! I can show you the design progress tomorrow.',
-                    timestamp=datetime.now(timezone.utc) - timedelta(hours=23),
-                    is_approved=True
-                )
-            ]
-            db.session.add_all(messages)
-            db.session.commit()
-
-            # Initial project review
-            review = Review(
-                project_id=project.id,
-                reviewer_id=users['client'].id,
-                rating=4,
-                comment='Great progress on the design phase!',
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(review)
-            db.session.commit()
-
-            print("Seed data inserted successfully!")
-
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error seeding data: {str(e)}")
-            raise
-        finally:
-            db.session.close()
-
-if __name__ == '__main__':
-    seed_data()
+    print("Database seeded successfully with 70 users, 70 projects and 70 disputes!")

@@ -1,6 +1,6 @@
 from extensions import db
 from datetime import datetime, timezone
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class Deliverable(db.Model):
     __tablename__ = 'deliverables'
@@ -21,3 +21,8 @@ class Deliverable(db.Model):
             'submitted_at': self.submitted_at.isoformat() if self.submitted_at else None,
             'status': self.status
         }
+
+class DeliverableSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Deliverable
+        load_instance = True
