@@ -51,58 +51,126 @@ class Signup(Resource):
     @auth_ns.expect(signup_model, validate=True)
     def post(self):
         from utils import send_verification_email
-        from flask import request
+        from flask import request, current_app
+        import logging
 
         data = request.json
+
+        # Input validation
+        if not data.get('email') or not data.get('password') or not data.get('role'):
+            return {'message': 'Email, password, and role are required'}, 400
+
+        if len(data['password']) < 8:
+            return {'message': 'Password must be at least 8 characters long'}, 400
+
+        if data['role'] not in ['client', 'freelancer']:
+            return {'message': 'Role must be either client or freelancer'}, 400
+
+        # Check if email already exists
         if User.query.filter_by(email=data['email']).first():
+            current_app.logger.warning(f"Signup attempt with existing email: {data['email']}")
             return {'message': 'Email already registered'}, 400
 
-        new_user = User(email=data['email'], role=data['role'])
-        new_user.set_password(data['password'])
-        db.session.add(new_user)
-        db.session.commit()
+        try:
+            # Create new user
+            new_user = User(email=data['email'], role=data['role'])
+            new_user.set_password(data['password'])
+            db.session.add(new_user)
+            db.session.commit()
 
-        # Send verification email
-        base_url = request.host_url.rstrip('/')
-        if send_verification_email(new_user, base_url):
-            return {'message': 'Registration successful. Please check your email to verify your account.'}, 201
-        else:
-            return {'message': 'Registration successful, but failed to send verification email. Please contact support.'}, 201
+            current_app.logger.info(f"New user registered: {new_user.email} (ID: {new_user.id})")
+
+            # Send verification email
+            base_url = request.host_url.rstrip('/')
+            if send_verification_email(new_user, base_url):
+                current_app.logger.info(f"Verification email sent to: {new_user.email}")
+                return {'message': 'Registration successful. Please check your email to verify your account.'}, 201
+            else:
+                current_app.logger.error(f"Failed to send verification email to: {new_user.email}")
+                return {'message': 'Registration successful, but failed to send verification email. Please contact support.'}, 201
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error during user registration: {str(e)}")
+            return {'message': 'Registration failed. Please try again.'}, 500
 
 @auth_ns.route('/verify-email')
 class VerifyEmail(Resource):
     def get(self):
+        from flask import current_app
+        import logging
+
         token = request.args.get('token')
         email = request.args.get('email')
 
+        # Input validation
         if not token or not email:
+            current_app.logger.warning("Email verification attempt with missing token or email")
             return {'message': 'Invalid verification link'}, 400
 
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            return {'message': 'User not found'}, 404
+        try:
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                current_app.logger.warning(f"Email verification attempt for non-existent user: {email}")
+                return {'message': 'User not found'}, 404
 
-        if user.verify_email_token(token):
-            db.session.commit()
-            return {'message': 'Email verified successfully'}, 200
-        else:
-            return {'message': 'Invalid or expired verification token'}, 400
+            if user.is_verified:
+                current_app.logger.info(f"Email verification attempt for already verified user: {email}")
+                return {'message': 'Email already verified'}, 200
+
+            if user.verify_email_token(token):
+                db.session.commit()
+                current_app.logger.info(f"Email verified successfully for user: {email} (ID: {user.id})")
+                return {'message': 'Email verified successfully'}, 200
+            else:
+                current_app.logger.warning(f"Invalid or expired verification token for user: {email}")
+                return {'message': 'Invalid or expired verification token'}, 400
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error during email verification: {str(e)}")
+            return {'message': 'Verification failed. Please try again.'}, 500
 
 @auth_ns.route('/login')
 class Login(Resource):
     @auth_ns.expect(login_model, validate=True)
     def post(self):
+        from flask import current_app
+        import logging
+
         data = request.json
-        user = User.query.filter_by(email=data['email']).first()
-        if user and user.check_password(data['password']):
+
+        # Input validation
+        if not data.get('email') or not data.get('password'):
+            return {'message': 'Email and password are required'}, 400
+
+        try:
+            user = User.query.filter_by(email=data['email']).first()
+
+            if not user:
+                current_app.logger.warning(f"Login attempt with non-existent email: {data['email']}")
+                return {'message': 'Invalid credentials'}, 401
+
+            if not user.check_password(data['password']):
+                current_app.logger.warning(f"Failed login attempt for user: {data['email']}")
+                return {'message': 'Invalid credentials'}, 401
+
             if not user.is_verified:
+                current_app.logger.info(f"Login attempt for unverified user: {data['email']}")
                 return {'message': 'Please verify your email before logging in'}, 403
 
+            # Successful login
             token = create_token(user)
             user.last_login = datetime.utcnow()
             db.session.commit()
+
+            current_app.logger.info(f"Successful login for user: {data['email']} (ID: {user.id})")
             return {'token': token}, 200
-        return {'message': 'Invalid credentials'}, 401
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error during login: {str(e)}")
+            return {'message': 'Login failed. Please try again.'}, 500
 
 
 # Corrected Admin CRUD Route Generation 

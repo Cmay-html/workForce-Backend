@@ -6,6 +6,8 @@ from urllib.parse import quote
 
 def send_verification_email(user, base_url):
     """Send email verification link to user"""
+    import logging
+
     try:
         token = user.generate_verification_token()
         verification_url = f"{base_url}/verify-email?token={token}&email={quote(user.email)}"
@@ -38,11 +40,13 @@ def send_verification_email(user, base_url):
         mail.send(msg)
         return True
     except Exception as e:
-        print(f"Error sending verification email: {e}")
+        logging.error(f"Error sending verification email to {user.email}: {str(e)}")
         return False
 
 def send_password_reset_email(user, reset_token, base_url):
     """Send password reset email to user"""
+    import logging
+
     try:
         reset_url = f"{base_url}/reset-password?token={reset_token}&email={quote(user.email)}"
 
@@ -74,7 +78,7 @@ def send_password_reset_email(user, reset_token, base_url):
         mail.send(msg)
         return True
     except Exception as e:
-        print(f"Error sending password reset email: {e}")
+        logging.error(f"Error sending password reset email to {user.email}: {str(e)}")
         return False
 
 # Pagination utility
