@@ -1,8 +1,8 @@
-"""Add dispute and policy models
+"""change on payment table
 
-Revision ID: 9543c00b6ede
+Revision ID: 6ab01d912a89
 Revises: 
-Create Date: 2025-10-27 10:58:00.613477
+Create Date: 2025-10-26 15:08:12.903031
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9543c00b6ede'
+revision = '6ab01d912a89'
 down_revision = None
 branch_labels = None
 depends_on = None

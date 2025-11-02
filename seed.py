@@ -1,5 +1,3 @@
-# seed.py
-
 from app import create_app
 from extensions import db
 from models import User, ClientProfile, FreelancerProfile, Project, Milestone, Deliverable, Invoice, Payment, Message, Review, Skill, FreelancerSkill, TimeLog, Dispute, Policy
@@ -18,9 +16,9 @@ with app.app_context():
     db.session.query(Payment).delete()
     db.session.query(Invoice).delete()
     db.session.query(Deliverable).delete()
-    
+
     # CORRECTED ORDER: Delete Disputes before Milestones
-    db.session.query(Dispute).delete() 
+    db.session.query(Dispute).delete()
     db.session.query(Milestone).delete()
 
     db.session.query(Project).delete()
