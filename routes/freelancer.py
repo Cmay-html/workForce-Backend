@@ -1,273 +1,197 @@
+# routes/freelancer.py
 from flask import request
-from flask_restx import Namespace, Resource, fields
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restx import Namespace, Resource, reqparse, fields
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from extensions import db
-from models import Application, TimeEntry, Deliverable, Job, FreelancerProfile
-from datetime import datetime, timezone
+from models.user import FreelancerProfile, User
+from models.project_application import ProjectApplication
+from models.project import Project
 from http import HTTPStatus
-from middlewares.auth_middleware import role_required
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+ns = Namespace('freelancer', description='Freelancer Journey')
 
-def register_routes(ns):
-    """Register routes for the Freelance namespace"""
-    # Define input/output models
-    application_model = ns.model('Application', {
-        'job_id': fields.Integer(required=True, description='Job ID'),
-        'freelancer_id': fields.Integer(readonly=True, description='Freelancer ID'),
-        'cover_letter': fields.String(description='Cover letter'),
-        'proposed_rate': fields.Float(description='Proposed hourly rate'),
-        'status': fields.String(enum=['pending', 'accepted', 'rejected'], readonly=True),
-        'created_at': fields.DateTime(readonly=True),
-        'updated_at': fields.DateTime(readonly=True)
+def require_role(role):
+    def decorator(f):
+        @jwt_required()
+        def wrapped(*args, **kwargs):
+            claims = get_jwt()
+            if claims.get('role') != role:
+                logger.error(f"Unauthorized access by {get_jwt_identity()} with role {claims.get('role')}")
+                return {'message': f'Only {role}s allowed'}, HTTPStatus.FORBIDDEN
+            user_email = get_jwt_identity()
+            user = User.query.filter_by(email=user_email).first()
+            if not user or not user.freelancer_profile:
+                logger.error(f"Freelancer profile not found for {user_email}")
+                return {'message': 'Profile not found'}, HTTPStatus.NOT_FOUND
+            request.user = user.freelancer_profile
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# API Models
+profile_model = ns.model('FreelancerProfile', {
+    'id': fields.Integer(readonly=True),
+    'user_id': fields.Integer(readonly=True),
+    'hourly_rate': fields.Float(),
+    'bio': fields.String(),
+    'experience': fields.String(),
+    'portfolio_links': fields.String(),
+    'profile_picture_uri': fields.String(),
+    'created_at': fields.DateTime(readonly=True),
+    'updated_at': fields.DateTime(readonly=True)
+})
+
+project_model = ns.model('Project', {
+    'id': fields.Integer(readonly=True),
+    'title': fields.String(),
+    'description': fields.String(),
+    'budget': fields.Float(),
+    'status': fields.String(),
+    'client_id': fields.Integer(),
+    'freelancer_id': fields.Integer(),
+    'created_at': fields.DateTime(),
+    'completed_at': fields.DateTime()
+})
+
+application_model = ns.model('Application', {
+    'id': fields.Integer(readonly=True),
+    'project_id': fields.Integer(),
+    'freelancer_id': fields.Integer(),
+    'proposal': fields.String(),
+    'bid_amount': fields.Float(),
+    'status': fields.String(),
+    'applied_at': fields.DateTime()
+})
+
+@ns.route('/profile')
+class FreelancerProfile(Resource):
+    @ns.marshal_with(profile_model)
+    @require_role('freelancer')
+    def get(self):
+        """Get freelancer profile"""
+        freelancer = request.user
+        logger.info(f"Freelancer {freelancer.id} retrieved profile")
+        return freelancer, HTTPStatus.OK
+
+    @ns.expect(profile_model)
+    @ns.marshal_with(profile_model)
+    @require_role('freelancer')
+    def put(self):
+        """Update freelancer profile"""
+        freelancer = request.user
+        data = request.get_json()
+
+        # Update allowed fields
+        updatable_fields = ['hourly_rate', 'bio', 'experience', 'portfolio_links', 'profile_picture_uri']
+        for field in updatable_fields:
+            if field in data:
+                setattr(freelancer, field, data[field])
+
+        freelancer.updated_at = db.func.now()
+        db.session.commit()
+        logger.info(f"Freelancer {freelancer.id} updated profile")
+        return freelancer, HTTPStatus.OK
+
+@ns.route('/projects')
+class FreelancerProjects(Resource):
+    parser = reqparse.RequestParser()
+    parser.add_argument('page', type=int, default=1)
+    parser.add_argument('per_page', type=int, default=10)
+    parser.add_argument('status', type=str, choices=['posted', 'active', 'completed'])
+
+    @ns.expect(parser)
+    @ns.marshal_list_with(project_model, envelope='data')
+    @require_role('freelancer')
+    def get(self):
+        """Get available projects or freelancer's projects"""
+        args = self.parser.parse_args()
+        freelancer = request.user
+
+        query = Project.query
+
+        if args['status']:
+            if args['status'] == 'posted':
+                # Available projects
+                query = query.filter(Project.status.in_(['posted', 'open']))
+            elif args['status'] == 'active':
+                # Freelancer's active projects
+                query = query.filter_by(freelancer_id=freelancer.id, status='active')
+            elif args['status'] == 'completed':
+                # Freelancer's completed projects
+                query = query.filter_by(freelancer_id=freelancer.id, status='completed')
+        else:
+            # Default: available projects + freelancer's projects
+            query = query.filter(
+                (Project.status.in_(['posted', 'open'])) |
+                (Project.freelancer_id == freelancer.id)
+            )
+
+        projects = query.order_by(Project.created_at.desc()).paginate(
+            page=args['page'], per_page=args['per_page'], error_out=False
+        )
+
+        logger.info(f"Freelancer {freelancer.id} retrieved {len(projects.items)} projects")
+        return projects.items, HTTPStatus.OK
+
+@ns.route('/applications')
+class FreelancerApplications(Resource):
+    parser = reqparse.RequestParser()
+    parser.add_argument('page', type=int, default=1)
+    parser.add_argument('per_page', type=int, default=10)
+
+    @ns.expect(parser)
+    @ns.marshal_list_with(application_model, envelope='data')
+    @require_role('freelancer')
+    def get(self):
+        args = self.parser.parse_args()
+        freelancer = request.user
+        applications = ProjectApplication.query.filter_by(freelancer_id=freelancer.id).paginate(
+            page=args['page'], per_page=args['per_page'], error_out=False
+        )
+        logger.info(f"Freelancer {freelancer.id} retrieved applications")
+        return applications.items, HTTPStatus.OK
+
+@ns.route('/projects/<int:project_id>/apply')
+class ApplyToProject(Resource):
+    application_fields = ns.model('ApplyModel', {
+        'proposal': fields.String(description='Proposal text'),
+        'bid_amount': fields.Float(description='Bid amount')
     })
 
-    time_entry_model = ns.model('TimeEntry', {
-        'job_id': fields.Integer(required=True, description='Job ID'),
-        'freelancer_id': fields.Integer(readonly=True, description='Freelancer ID'),
-        'hours_worked': fields.Float(required=True, description='Hours worked'),
-        'date': fields.Date(required=True, description='Date of work'),
-        'description': fields.String(description='Work description'),
-        'created_at': fields.DateTime(readonly=True)
-    })
+    @ns.expect(application_fields)
+    @require_role('freelancer')
+    def post(self, project_id):
+        """Apply to a project"""
+        freelancer = request.user
+        data = request.get_json()
 
-    deliverable_model = ns.model('Deliverable', {
-        'job_id': fields.Integer(required=True, description='Job ID'),
-        'freelancer_id': fields.Integer(readonly=True, description='Freelancer ID'),
-        'title': fields.String(required=True, description='Deliverable title'),
-        'file_url': fields.String(required=True, description='URL to deliverable file'),
-        'status': fields.String(enum=['submitted', 'reviewed', 'accepted', 'rejected'], readonly=True),
-        'submitted_at': fields.DateTime(readonly=True)
-    })
+        # Check if project exists and is available
+        project = Project.query.filter_by(id=project_id, status='posted').first()
+        if not project:
+            return {'message': 'Project not found or not available'}, HTTPStatus.NOT_FOUND
 
-    # Application Management Endpoints
-    @ns.route('/applications')
-    class ApplicationList(Resource):
-        @ns.expect(application_model)
-        @ns.marshal_with(application_model, envelope='data')
-        @jwt_required()
-        @role_required('freelancer')
-        def post(self):
-            """Create a new job application"""
-            data = request.get_json()
-            freelancer_id = get_jwt_identity()
-            logger.info(f"Freelancer {freelancer_id} applying to job {data['job_id']}")
+        # Check if already applied
+        existing_app = ProjectApplication.query.filter_by(
+            project_id=project_id, freelancer_id=freelancer.id
+        ).first()
+        if existing_app:
+            return {'message': 'Already applied to this project'}, HTTPStatus.BAD_REQUEST
 
-            # Validate job exists and is open
-            job = Job.query.filter_by(id=data['job_id'], status='open').first()
-            if not job:
-                logger.error(f"Job {data['job_id']} not found or not open")
-                return {'message': 'Job not found or not open'}, HTTPStatus.BAD_REQUEST
+        # Create application
+        application = ProjectApplication(
+            project_id=project_id,
+            freelancer_id=freelancer.id,
+            proposal=data.get('proposal'),
+            bid_amount=data.get('bid_amount'),
+            status='pending'
+        )
 
-            # Check for duplicate application
-            if Application.query.filter_by(job_id=data['job_id'], freelancer_id=freelancer_id).first():
-                logger.error(f"Freelancer {freelancer_id} already applied to job {data['job_id']}")
-                return {'message': 'You have already applied to this job'}, HTTPStatus.BAD_REQUEST
+        db.session.add(application)
+        db.session.commit()
+        logger.info(f"Freelancer {freelancer.id} applied to project {project_id}")
+        return {'message': 'Application submitted successfully', 'application_id': application.id}, HTTPStatus.CREATED
 
-            # Validate proposed_rate against FreelancerProfile.hourly_rate
-            profile = FreelancerProfile.query.filter_by(user_id=freelancer_id).first()
-            if not profile:
-                logger.error(f"Freelancer {freelancer_id} has no profile")
-                return {'message': 'Freelancer profile not found'}, HTTPStatus.BAD_REQUEST
-            if data.get('proposed_rate') and profile.hourly_rate and data['proposed_rate'] < float(profile.hourly_rate):
-                logger.error(f"Proposed rate {data['proposed_rate']} below profile rate {profile.hourly_rate}")
-                return {'message': 'Proposed rate cannot be below your profile hourly rate'}, HTTPStatus.BAD_REQUEST
-
-            application = Application(
-                job_id=data['job_id'],
-                freelancer_id=freelancer_id,
-                cover_letter=data.get('cover_letter'),
-                proposed_rate=data.get('proposed_rate'),
-                status='pending',
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(application)
-            db.session.commit()
-            logger.info(f"Application {application.id} created")
-            return application, HTTPStatus.CREATED
-
-        @ns.marshal_list_with(application_model, envelope='data')
-        @jwt_required()
-        @role_required('freelancer')
-        def get(self):
-            """List all applications for the authenticated freelancer with pagination"""
-            freelancer_id = get_jwt_identity()
-            page = request.args.get('page', 1, type=int)
-            per_page = request.args.get('per_page', 10, type=int)
-            applications = Application.query.filter_by(freelancer_id=freelancer_id).paginate(
-                page=page, per_page=per_page, error_out=False
-            )
-            logger.info(f"Freelancer {freelancer_id} retrieved {len(applications.items)} applications")
-            return applications.items, HTTPStatus.OK
-
-    @ns.route('/applications/<int:id>')
-    class ApplicationDetail(Resource):
-        @ns.marshal_with(application_model)
-        @jwt_required()
-        @role_required('freelancer')
-        def get(self, id):
-            """Get a specific application"""
-            freelancer_id = get_jwt_identity()
-            application = Application.query.filter_by(id=id, freelancer_id=freelancer_id).first()
-            if not application:
-                logger.error(f"Application {id} not found for freelancer {freelancer_id}")
-                return {'message': 'Application not found'}, HTTPStatus.NOT_FOUND
-            return application, HTTPStatus.OK
-
-        @ns.expect(application_model)
-        @ns.marshal_with(application_model)
-        @jwt_required()
-        @role_required('freelancer')
-        def put(self, id):
-            """Update a pending application (cover_letter and proposed_rate only)"""
-            freelancer_id = get_jwt_identity()
-            application = Application.query.filter_by(id=id, freelancer_id=freelancer_id).first()
-            if not application:
-                logger.error(f"Application {id} not found for freelancer {freelancer_id}")
-                return {'message': 'Application not found'}, HTTPStatus.NOT_FOUND
-            if application.status != 'pending':
-                logger.error(f"Freelancer {freelancer_id} attempted to update non-pending application {id}")
-                return {'message': 'Cannot update non-pending application'}, HTTPStatus.BAD_REQUEST
-
-            data = request.get_json()
-            # Validate proposed_rate against FreelancerProfile.hourly_rate
-            profile = FreelancerProfile.query.filter_by(user_id=freelancer_id).first()
-            if not profile:
-                logger.error(f"Freelancer {freelancer_id} has no profile")
-                return {'message': 'Freelancer profile not found'}, HTTPStatus.BAD_REQUEST
-            if data.get('proposed_rate') and profile.hourly_rate and data['proposed_rate'] < float(profile.hourly_rate):
-                logger.error(f"Proposed rate {data['proposed_rate']} below profile rate {profile.hourly_rate}")
-                return {'message': 'Proposed rate cannot be below your profile hourly rate'}, HTTPStatus.BAD_REQUEST
-
-            application.cover_letter = data.get('cover_letter', application.cover_letter)
-            application.proposed_rate = data.get('proposed_rate', application.proposed_rate)
-            application.updated_at = datetime.now(timezone.utc)
-            db.session.commit()
-            logger.info(f"Application {id} updated by freelancer {freelancer_id}")
-            return application, HTTPStatus.OK
-
-        @jwt_required()
-        @role_required('freelancer')
-        def delete(self, id):
-            """Delete a pending application"""
-            freelancer_id = get_jwt_identity()
-            application = Application.query.filter_by(id=id, freelancer_id=freelancer_id).first()
-            if not application:
-                logger.error(f"Application {id} not found for freelancer {freelancer_id}")
-                return {'message': 'Application not found'}, HTTPStatus.NOT_FOUND
-            if application.status != 'pending':
-                logger.error(f"Freelancer {freelancer_id} attempted to delete non-pending application {id}")
-                return {'message': 'Cannot delete non-pending application'}, HTTPStatus.BAD_REQUEST
-            db.session.delete(application)
-            db.session.commit()
-            logger.info(f"Application {id} deleted by freelancer {freelancer_id}")
-            return {'message': 'Application deleted'}, HTTPStatus.NO_CONTENT
-
-    # Time Tracking Endpoints
-    @ns.route('/time-entries')
-    class TimeEntryList(Resource):
-        @ns.expect(time_entry_model)
-        @ns.marshal_with(time_entry_model, envelope='data')
-        @jwt_required()
-        @role_required('freelancer')
-        def post(self):
-            """Create a new time entry"""
-            data = request.get_json()
-            freelancer_id = get_jwt_identity()
-            logger.info(f"Freelancer {freelancer_id} creating time entry for job {data['job_id']}")
-
-            # Validate job exists and freelancer is assigned
-            application = Application.query.filter_by(
-                job_id=data['job_id'], freelancer_id=freelancer_id, status='accepted'
-            ).first()
-            if not application:
-                logger.error(f"Freelancer {freelancer_id} not assigned to job {data['job_id']}")
-                return {'message': 'Job not found or not assigned to you'}, HTTPStatus.BAD_REQUEST
-
-            # Validate hours_worked
-            if data['hours_worked'] <= 0:
-                logger.error(f"Invalid hours_worked {data['hours_worked']} for freelancer {freelancer_id}")
-                return {'message': 'Hours worked must be positive'}, HTTPStatus.BAD_REQUEST
-
-            time_entry = TimeEntry(
-                job_id=data['job_id'],
-                freelancer_id=freelancer_id,
-                hours_worked=data['hours_worked'],
-                date=data['date'],
-                description=data.get('description'),
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(time_entry)
-            db.session.commit()
-            logger.info(f"Time entry {time_entry.id} created for freelancer {freelancer_id}")
-            return time_entry, HTTPStatus.CREATED
-
-        @ns.marshal_list_with(time_entry_model, envelope='data')
-        @jwt_required()
-        @role_required('freelancer')
-        def get(self):
-            """List all time entries for the authenticated freelancer with pagination"""
-            freelancer_id = get_jwt_identity()
-            page = request.args.get('page', 1, type=int)
-            per_page = request.args.get('per_page', 10, type=int)
-            time_entries = TimeEntry.query.filter_by(freelancer_id=freelancer_id).paginate(
-                page=page, per_page=per_page, error_out=False
-            )
-            logger.info(f"Freelancer {freelancer_id} retrieved {len(time_entries.items)} time entries")
-            return time_entries.items, HTTPStatus.OK
-
-    # Deliverable Submission Endpoints
-    @ns.route('/deliverables')
-    class DeliverableList(Resource):
-        @ns.expect(deliverable_model)
-        @ns.marshal_with(deliverable_model, envelope='data')
-        @jwt_required()
-        @role_required('freelancer')
-        def post(self):
-            """Submit a new deliverable"""
-            data = request.get_json()
-            freelancer_id = get_jwt_identity()
-            logger.info(f"Freelancer {freelancer_id} submitting deliverable for job {data['job_id']}")
-
-            # Validate job exists and freelancer is assigned
-            application = Application.query.filter_by(
-                job_id=data['job_id'], freelancer_id=freelancer_id, status='accepted'
-            ).first()
-            if not application:
-                logger.error(f"Freelancer {freelancer_id} not assigned to job {data['job_id']}")
-                return {'message': 'Job not found or not assigned to you'}, HTTPStatus.BAD_REQUEST
-
-            # Validate file_url (basic check, adjust for your storage service)
-            if not data['file_url'].startswith(('http://', 'https://', 's3://')):
-                logger.error(f"Invalid file_url {data['file_url']} for freelancer {freelancer_id}")
-                return {'message': 'Invalid file URL'}, HTTPStatus.BAD_REQUEST
-
-            deliverable = Deliverable(
-                job_id=data['job_id'],
-                freelancer_id=freelancer_id,
-                title=data['title'],
-                file_url=data['file_url'],
-                status='submitted',
-                submitted_at=datetime.now(timezone.utc)
-            )
-            db.session.add(deliverable)
-            db.session.commit()
-            logger.info(f"Deliverable {deliverable.id} submitted by freelancer {freelancer_id}")
-            return deliverable, HTTPStatus.CREATED
-
-        @ns.marshal_list_with(deliverable_model, envelope='data')
-        @jwt_required()
-        @role_required('freelancer')
-        def get(self):
-            """List all deliverables for the authenticated freelancer with pagination"""
-            freelancer_id = get_jwt_identity()
-            page = request.args.get('page', 1, type=int)
-            per_page = request.args.get('per_page', 10, type=int)
-            deliverables = Deliverable.query.filter_by(freelancer_id=freelancer_id).paginate(
-                page=page, per_page=per_page, error_out=False
-            )
-            logger.info(f"Freelancer {freelancer_id} retrieved {len(deliverables.items)} deliverables")
-            return deliverables.items, HTTPStatus.OK
+def register_routes(api_ns):
+    pass

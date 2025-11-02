@@ -52,6 +52,8 @@ class ClientProfile(db.Model):
 
     user = db.relationship('User', back_populates='client_profile')
 
+    # payments = db.relationship("Payment", backref="client")
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -78,6 +80,8 @@ class FreelancerProfile(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', back_populates='freelancer_profile')
+    # many-to-many with skills will be defined in skill models
+    # payments = db.relationship("Payment", backref="freelancer")
 
     def to_dict(self):
         return {
@@ -103,12 +107,12 @@ class ClientProfileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ClientProfile
         load_instance = True
-        include_relationships = True
+        include_relationships = False
         include_fk = True
 
 class FreelancerProfileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = FreelancerProfile
         load_instance = True
-        include_relationships = True
+        include_relationships = False
         include_fk = True
