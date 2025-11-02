@@ -37,7 +37,7 @@ from .user import User, FreelancerProfile, ClientProfile
 
 # Import from models.py for backward compatibility
 try:
-    from ..models import Application, Job
+    from models import Application, Job
 except ImportError:
     # Fallback if models.py doesn't exist
     Application = None

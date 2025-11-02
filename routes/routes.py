@@ -24,6 +24,11 @@ login_model = auth_ns.model('Login', {
     'email': fields.String(required=True),
     'password': fields.String(required=True)
 })
+signup_model = auth_ns.model('Signup', {
+    'email': fields.String(required=True),
+    'password': fields.String(required=True),
+    'role': fields.String(required=True, enum=['client', 'freelancer'])
+})
 admin_user_model = admin_ns.model('AdminUser', {
     'email': fields.String(required=True),
     'password': fields.String(required=True),
@@ -41,6 +46,48 @@ def init_routes():
 
 
 #Authentication Routes
+@auth_ns.route('/signup')
+class Signup(Resource):
+    @auth_ns.expect(signup_model, validate=True)
+    def post(self):
+        from utils import send_verification_email
+        from flask import request
+
+        data = request.json
+        if User.query.filter_by(email=data['email']).first():
+            return {'message': 'Email already registered'}, 400
+
+        new_user = User(email=data['email'], role=data['role'])
+        new_user.set_password(data['password'])
+        db.session.add(new_user)
+        db.session.commit()
+
+        # Send verification email
+        base_url = request.host_url.rstrip('/')
+        if send_verification_email(new_user, base_url):
+            return {'message': 'Registration successful. Please check your email to verify your account.'}, 201
+        else:
+            return {'message': 'Registration successful, but failed to send verification email. Please contact support.'}, 201
+
+@auth_ns.route('/verify-email')
+class VerifyEmail(Resource):
+    def get(self):
+        token = request.args.get('token')
+        email = request.args.get('email')
+
+        if not token or not email:
+            return {'message': 'Invalid verification link'}, 400
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return {'message': 'User not found'}, 404
+
+        if user.verify_email_token(token):
+            db.session.commit()
+            return {'message': 'Email verified successfully'}, 200
+        else:
+            return {'message': 'Invalid or expired verification token'}, 400
+
 @auth_ns.route('/login')
 class Login(Resource):
     @auth_ns.expect(login_model, validate=True)
@@ -48,6 +95,9 @@ class Login(Resource):
         data = request.json
         user = User.query.filter_by(email=data['email']).first()
         if user and user.check_password(data['password']):
+            if not user.is_verified:
+                return {'message': 'Please verify your email before logging in'}, 403
+
             token = create_token(user)
             user.last_login = datetime.utcnow()
             db.session.commit()
