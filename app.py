@@ -18,7 +18,7 @@ from routes.routes import auth_ns
 from routes.applications import register_routes as register_applications
 from routes.invoices import register_routes as register_invoices
 from routes.receipts import register_routes as register_receipts
-from routes.payments import register_routes as register_payments
+from routes.payment import register_routes as register_payments
 from routes.freelancer import register_routes as register_freelancer
 from flask_mail import Mail
 
