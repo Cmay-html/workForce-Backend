@@ -11,6 +11,10 @@ class ProjectApplication(db.Model):
     status = db.Column(db.String(50))
     applied_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
+    # Define relationships
+    project = db.relationship('Project', backref=db.backref('applications', cascade='all, delete-orphan'))
+    freelancer = db.relationship('FreelancerProfile', backref=db.backref('applications', lazy='dynamic'))
+
     def to_dict(self):
         return {
             'id': self.id,
