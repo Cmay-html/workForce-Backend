@@ -1,7 +1,7 @@
 alembic==1.14.1
 aniso8601==10.0.1
 annotated-types==0.7.0
-anyio==4.11.0
+anyio==4.6.2
 asttokens==3.0.0
 attrs==25.4.0
 bcrypt==4.0.1
