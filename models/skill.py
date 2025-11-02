@@ -1,5 +1,5 @@
 from extensions import db
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class Skill(db.Model):
     __tablename__ = 'skills'
@@ -9,8 +9,11 @@ class Skill(db.Model):
 
     def to_dict(self):
         return {'id': self.id, 'name': self.name}
-    
 
+class SkillSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Skill
+        load_instance = True
 
 class FreelancerSkill(db.Model):
     __tablename__ = 'freelancer_skills'
@@ -21,3 +24,7 @@ class FreelancerSkill(db.Model):
     def to_dict(self):
         return {'freelancer_profile_id': self.freelancer_profile_id, 'skill_id': self.skill_id}
 
+class FreelancerSkillSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = FreelancerSkill
+        load_instance = True

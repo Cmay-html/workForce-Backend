@@ -1,7 +1,7 @@
 from extensions import db
 from sqlalchemy.dialects.postgresql import NUMERIC
 from datetime import datetime, timezone
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class Invoice(db.Model):
     __tablename__ = 'invoices'
@@ -12,6 +12,8 @@ class Invoice(db.Model):
     generated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     status = db.Column(db.String(50))
 
+    # payments = db.relationship("Payment", backref="invoices")
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -20,3 +22,8 @@ class Invoice(db.Model):
             'generated_at': self.generated_at.isoformat() if self.generated_at else None,
             'status': self.status
         }
+
+class InvoiceSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Invoice
+        load_instance = True
