@@ -1,7 +1,7 @@
 from extensions import db, ma
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -10,6 +10,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     is_verified = db.Column(db.Boolean, default=False)
+    verification_token = db.Column(db.String(255), nullable=True)
+    token_expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
 
@@ -27,6 +29,24 @@ class User(db.Model):
 
     def generate_token(self):
         return create_access_token(identity=self.id)
+
+    def generate_verification_token(self):
+        """Generate a secure verification token"""
+        import secrets
+        self.verification_token = secrets.token_urlsafe(32)
+        self.token_expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+        return self.verification_token
+
+    def verify_email_token(self, token):
+        """Verify the email verification token"""
+        if (self.verification_token == token and
+            self.token_expires_at and
+            datetime.now(timezone.utc) < self.token_expires_at):
+            self.is_verified = True
+            self.verification_token = None
+            self.token_expires_at = None
+            return True
+        return False
 
     def to_dict(self):
         return {

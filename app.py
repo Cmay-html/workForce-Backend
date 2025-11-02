@@ -3,7 +3,7 @@ import os
 import logging
 from flask import Flask, request
 from flask_restx import Api
-from extensions import db, migrate, jwt, api, ma
+from extensions import db, migrate, jwt, api, ma, mail
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -20,9 +20,6 @@ from routes.invoices import register_routes as register_invoices
 from routes.receipts import register_routes as register_receipts
 from routes.payments import register_routes as register_payments
 from routes.freelancer import register_routes as register_freelancer
-from flask_mail import Mail
-
-mail = Mail()
 
 def create_app(config=DevConfig):
     app = Flask(__name__)
