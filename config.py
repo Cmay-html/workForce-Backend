@@ -11,7 +11,7 @@ class Config:
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
 
     # Database settings
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # Moved to base Config
 
     # JWT settings
@@ -21,7 +21,7 @@ class Config:
 class DevConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'bd6f47d5fbe6130531225d993ce47f56')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
