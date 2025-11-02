@@ -1,14 +1,12 @@
 from flask import request
 from flask_restx import Resource, fields
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from extensions import db
 from models import Payment, Invoice
 from http import HTTPStatus
-from middlewares.auth_middleware import role_required
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def register_routes(ns):
@@ -23,9 +21,12 @@ def register_routes(ns):
     class PaymentList(Resource):
         @ns.marshal_list_with(payment_model, envelope='data')
         @jwt_required()
-        @role_required('freelancer')
         def get(self):
             """List all payments for the authenticated freelancer with pagination"""
+            claims = get_jwt()
+            if claims.get('role') != 'freelancer':
+                logger.error(f"User {get_jwt_identity()} attempted access with role {claims.get('role')}")
+                return {'message': 'Only freelancers are authorized'}, HTTPStatus.FORBIDDEN
             freelancer_id = get_jwt_identity()
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
@@ -41,9 +42,12 @@ def register_routes(ns):
     class PaymentDetail(Resource):
         @ns.marshal_with(payment_model)
         @jwt_required()
-        @role_required('freelancer')
         def get(self, id):
             """Get a specific payment"""
+            claims = get_jwt()
+            if claims.get('role') != 'freelancer':
+                logger.error(f"User {get_jwt_identity()} attempted access with role {claims.get('role')}")
+                return {'message': 'Only freelancers are authorized'}, HTTPStatus.FORBIDDEN
             freelancer_id = get_jwt_identity()
             invoices = Invoice.query.filter_by(freelancer_id=freelancer_id).all()
             invoice_ids = [invoice.id for invoice in invoices]

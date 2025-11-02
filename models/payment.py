@@ -15,6 +15,8 @@ class Payment(db.Model):
     paid_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     status = db.Column(db.String(50))
+    payment_date = db.Column(db.Date, nullable=True)
+    payment_method = db.Column(db.String, nullable=True)
 
     # relationships are defined on the profile models to avoid duplicate backref errors
     # access payments from profiles via ClientProfile.payments and FreelancerProfile.payments
@@ -29,7 +31,9 @@ class Payment(db.Model):
             'amount': float(self.amount) if self.amount is not None else None,
             'paid_at': self.paid_at.isoformat() if self.paid_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'status': self.status
+            'status': self.status,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'payment_method': self.payment_method
         }
 
 class PaymentSchema(SQLAlchemyAutoSchema):

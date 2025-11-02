@@ -1,8 +1,16 @@
+<<<<<<<< HEAD:migrations/versions/6ab01d912a89_change_on_payment_table.py
 """change on payment table
 
 Revision ID: 6ab01d912a89
 Revises: 
 Create Date: 2025-10-26 15:08:12.903031
+========
+"""empty message
+
+Revision ID: 207ad59cc75e
+Revises: 
+Create Date: 2025-10-27 20:49:42.312999
+>>>>>>>> origin/routes:migrations/versions/207ad59cc75e_.py
 
 """
 from alembic import op
@@ -10,7 +18,11 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
+<<<<<<<< HEAD:migrations/versions/6ab01d912a89_change_on_payment_table.py
 revision = '6ab01d912a89'
+========
+revision = '207ad59cc75e'
+>>>>>>>> origin/routes:migrations/versions/207ad59cc75e_.py
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -119,6 +131,8 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('project_id', sa.Integer(), nullable=True),
     sa.Column('freelancer_id', sa.Integer(), nullable=True),
+    sa.Column('proposal', sa.Text(), nullable=True),
+    sa.Column('bid_amount', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('status', sa.String(length=50), nullable=True),
     sa.Column('applied_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['freelancer_id'], ['freelancer_profiles.id'], ),
@@ -181,11 +195,20 @@ def upgrade():
     sa.Column('invoice_id', sa.Integer(), nullable=True),
     sa.Column('client_id', sa.Integer(), nullable=True),
     sa.Column('freelancer_id', sa.Integer(), nullable=True),
+<<<<<<<< HEAD:migrations/versions/6ab01d912a89_change_on_payment_table.py
     sa.Column('transaction_id', sa.String(length=100), nullable=True),
     sa.Column('amount', sa.NUMERIC(precision=10, scale=2), nullable=True),
     sa.Column('paid_at', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('status', sa.String(length=50), nullable=True),
+========
+    sa.Column('transaction_id', sa.String(), nullable=True),
+    sa.Column('amount', sa.Float(), nullable=True),
+    sa.Column('paid_at', sa.DateTime(), nullable=True),
+    sa.Column('status', sa.String(), nullable=True),
+    sa.Column('payment_date', sa.Date(), nullable=True),
+    sa.Column('payment_method', sa.String(), nullable=True),
+>>>>>>>> origin/routes:migrations/versions/207ad59cc75e_.py
     sa.ForeignKeyConstraint(['client_id'], ['client_profiles.id'], ),
     sa.ForeignKeyConstraint(['freelancer_id'], ['freelancer_profiles.id'], ),
     sa.ForeignKeyConstraint(['invoice_id'], ['invoices.id'], ),
