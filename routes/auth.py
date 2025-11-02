@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, current_app
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from extensions import db
@@ -8,6 +8,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from http import HTTPStatus
 # from utils.validators import is_valid_role  # Commented out as utils doesn't exist
 import logging
+import secrets
+# from utils.email_service import EmailService  # Commented out - email verification removed
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +35,22 @@ token_response_model = auth_ns.model('TokenResponse', {
     'refresh_token': fields.String(description='JWT refresh token')
 })
 
+google_login_model = auth_ns.model('GoogleLogin', {
+    'credential': fields.String(required=True, description='Google ID Token'),
+    'role': fields.String(required=False, enum=['freelancer', 'client'], description='User role (optional, defaults to freelancer)')
+})
+
+google_login_response_model = auth_ns.model('GoogleLoginResponse', {
+    'status': fields.String(description='Response status'),
+    'message': fields.String(description='Response message'),
+    'access_token': fields.String(description='JWT access token'),
+    'user': fields.Nested(auth_ns.model('UserInfo', {
+        'id': fields.Integer(description='User ID'),
+        'email': fields.String(description='User email'),
+        'role': fields.String(description='User role')
+    }))
+})
+
 @auth_ns.route('/signup')
 class Signup(Resource):
     @auth_ns.expect(signup_model)
@@ -51,13 +71,15 @@ class Signup(Resource):
             logger.error(f"Invalid role: {data['role']}")
             return {'message': 'Invalid role. Must be freelancer or client'}, HTTPStatus.BAD_REQUEST
 
-        # Create new user
+        # Create new user (email verification removed)
         user = User(
             email=data['email'],
             password_hash=generate_password_hash(data['password']),
             role=data['role'],
+            is_verified=True,  # Auto-verify since we're removing email verification
             created_at=datetime.now(timezone.utc)
         )
+
         db.session.add(user)
         db.session.commit()
 
@@ -72,8 +94,8 @@ class Signup(Resource):
             logger.info(f"FreelancerProfile created for user_id: {user.id}")
 
         # Generate JWT tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} signed up successfully")
         return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
 
@@ -91,8 +113,10 @@ class Login(Resource):
             logger.error(f"Invalid credentials for email: {data['email']}")
             return {'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
 
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        # Email verification removed - all users are now auto-verified
+
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} logged in successfully")
         return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.OK
 
@@ -107,12 +131,80 @@ class RefreshToken(Resource):
         logger.info(f"Access token refreshed for user {current_user_id}")
         return {'access_token': access_token, 'refresh_token': None}, HTTPStatus.OK
 
+# Email verification routes removed - using Google OAuth instead
+
+
+@auth_ns.route('/google-login')
+class GoogleLogin(Resource):
+    @auth_ns.expect(google_login_model)
+    @auth_ns.marshal_with(google_login_response_model)
+    def post(self):
+        """Authenticate user with Google OAuth ID token"""
+        data = request.get_json()
+        credential = data.get('credential')
+        role = data.get('role', 'freelancer')  # Default to freelancer
+
+        if not credential:
+            logger.error("No credential provided in Google login request")
+            return {'message': 'Credential is required'}, HTTPStatus.BAD_REQUEST
+
+        try:
+            # Verify the Google ID token
+            google_client_id = current_app.config.get('GOOGLE_CLIENT_ID')
+            if not google_client_id:
+                logger.error("GOOGLE_CLIENT_ID not configured")
+                return {'message': 'Google OAuth not configured'}, HTTPStatus.INTERNAL_SERVER_ERROR
+
+            idinfo = id_token.verify_oauth2_token(credential, google_requests.Request(), google_client_id)
+
+            # Extract user info
+            google_id = idinfo.get('sub')
+            email = idinfo.get('email')
+            name = idinfo.get('name')
+
+            if not google_id or not email:
+                logger.error("Invalid Google token: missing sub or email")
+                return {'message': 'Invalid Google token'}, HTTPStatus.BAD_REQUEST
+
+            logger.info(f"Google login attempt for email: {email}")
+
+            # Get or create user
+            user = User.get_or_create_from_google({
+                'sub': google_id,
+                'email': email,
+                'name': name
+            }, role=role)
+
+            # Generate JWT token
+            access_token = create_access_token(identity=str(user.id))
+
+            logger.info(f"Google login successful for user {user.id}")
+            return {
+                'status': 'success',
+                'message': 'Google login successful',
+                'access_token': access_token,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'role': user.role
+                }
+            }, HTTPStatus.OK
+
+        except ValueError as e:
+            logger.error(f"Invalid Google token: {str(e)}")
+            return {'message': 'Invalid Google token'}, HTTPStatus.BAD_REQUEST
+        except Exception as e:
+            logger.error(f"Google login error: {str(e)}")
+            return {'message': 'Google login failed'}, HTTPStatus.INTERNAL_SERVER_ERROR
+
+
 @auth_ns.route('/me')
 class UserProfile(Resource):
     @auth_ns.marshal_with(auth_ns.model('User', {
         'id': fields.Integer,
         'email': fields.String,
         'role': fields.String,
+        'is_verified': fields.Boolean,
         'created_at': fields.DateTime
     }))
     @jwt_required()

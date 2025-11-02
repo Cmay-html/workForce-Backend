@@ -8,9 +8,10 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)  # Optional for OAuth users
     role = db.Column(db.String(20), nullable=False)
-    is_verified = db.Column(db.Boolean, default=False)
+    google_id = db.Column(db.String(255), unique=True, nullable=True)  # Google OAuth ID
+    is_verified = db.Column(db.Boolean, default=True)  # OAuth users are pre-verified
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
 
@@ -32,9 +33,51 @@ class User(db.Model):
             'email': self.email,
             'role': self.role,
             'is_verified': self.is_verified,
+            'google_id': self.google_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
         }
+
+    @classmethod
+    def get_or_create_from_google(cls, google_user_info, role='freelancer'):
+        """Get or create user from Google OAuth info"""
+        google_id = google_user_info.get('sub')
+        email = google_user_info.get('email')
+
+        # Try to find existing user by Google ID or email
+        user = cls.query.filter(
+            (cls.google_id == google_id) | (cls.email == email)
+        ).first()
+
+        if user:
+            # Update Google ID if not set
+            if not user.google_id and google_id:
+                user.google_id = google_id
+                db.session.commit()
+            return user
+
+        # Create new user
+        user = cls(
+            email=email,
+            google_id=google_id,
+            role=role,
+            is_verified=True,  # Google OAuth users are pre-verified
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        # Create profile based on role
+        if role == 'freelancer':
+            from models import FreelancerProfile
+            freelancer_profile = FreelancerProfile(
+                user_id=user.id,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.session.add(freelancer_profile)
+            db.session.commit()
+
+        return user
 
 
 class ClientProfile(db.Model):

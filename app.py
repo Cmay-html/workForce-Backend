@@ -19,6 +19,7 @@ from routes.receipts import register_routes as register_receipts
 
 # Core extensions
 from extensions import db, migrate
+from utils.google_auth import init_google_oauth
 
 # Load environment variables
 load_dotenv()
@@ -32,11 +33,17 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'po
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['FLASK_SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your_flask_secret_key')
 
+# Google OAuth configuration
+app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
+app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
+app.config['GOOGLE_REDIRECT_URI'] = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5000/auth/google/callback')
+
 # Initialize extensions
 jwt = JWTManager(app)
 CORS(app)
 db.init_app(app)
 migrate.init_app(app, db)
+init_google_oauth(app)
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
