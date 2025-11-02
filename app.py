@@ -1,4 +1,6 @@
 # app.py
+import os
+import logging
 from flask import Flask, request
 from flask_restx import Api
 from extensions import db, migrate, jwt, api, ma
@@ -12,6 +14,12 @@ from models import (
 )
 from config import DevConfig
 from routes import init_routes
+from routes.routes import auth_ns
+from routes.applications import register_routes as register_applications
+from routes.invoices import register_routes as register_invoices
+from routes.receipts import register_routes as register_receipts
+from routes.payments import register_routes as register_payments
+from routes.freelancer import register_routes as register_freelancer
 from flask_mail import Mail
 
 mail = Mail()

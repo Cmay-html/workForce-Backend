@@ -12,7 +12,7 @@ class Invoice(db.Model):
     generated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     status = db.Column(db.String(50))
 
-    payments = db.relationship("Payment", backref="invoices")
+    # payments = db.relationship("Payment", backref="invoices")
 
     def to_dict(self):
         return {

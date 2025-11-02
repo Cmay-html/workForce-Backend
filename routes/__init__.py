@@ -1,2 +1,2 @@
 # routes/__init__.py
-# Empty file to make routes a package
+from .routes import init_routes

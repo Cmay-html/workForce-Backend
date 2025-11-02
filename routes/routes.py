@@ -7,7 +7,13 @@ from datetime import datetime
 from sqlalchemy import func
 
 # Import all models and their schemas cleanly from the models package
-from models import *
+from models import (
+    User, UserSchema, ClientProfile, ClientProfileSchema, FreelancerProfile, FreelancerProfileSchema,
+    Project, ProjectSchema, Milestone, MilestoneSchema, Dispute, DisputeSchema,
+    Deliverable, DeliverableSchema, Invoice, InvoiceSchema, Payment, PaymentSchema,
+    Message, MessageSchema, Review, ReviewSchema, Skill, SkillSchema, FreelancerSkill, FreelancerSkillSchema,
+    TimeLog, TimeLogSchema, ProjectApplication, ProjectApplicationSchema, Policy, PolicySchema
+)
 
 # --- Namespace Definitions ---
 admin_ns = Namespace('admin', description='Admin operations')
