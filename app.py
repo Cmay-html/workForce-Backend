@@ -33,7 +33,7 @@ def create_app(config=DevConfig):
 
     # Initialize extensions
     db.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "https://workforceflows.netlify.app", "https://6907ec2d93c29a137a66e61f--workforceflows.netlify.app", "https://6908506926707cce75213659--workforceflows.netlify.app"]}})
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
     migrate.init_app(app, db)
     api.init_app(app)
     jwt.init_app(app)
@@ -66,7 +66,7 @@ app.config['FLASK_SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your_flask_secre
 
 # Initialize extensions
 jwt = JWTManager(app)
-CORS(app, origins=["http://localhost:5173", "https://workforceflows.netlify.app", "https://6907ec2d93c29a137a66e61f--workforceflows.netlify.app", "https://6908506926707cce75213659--workforceflows.netlify.app"])
+CORS(app, origins="*")
 db.init_app(app)
 migrate.init_app(app, db)
 
