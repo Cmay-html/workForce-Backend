@@ -1,5 +1,5 @@
 from flask import Flask
-from extensions import db, ma
+from .extensions import db, ma
 from models.user import User, ClientProfile, FreelancerProfile
 
 app = Flask(__name__)

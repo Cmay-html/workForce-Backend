@@ -3,23 +3,23 @@ import os
 import logging
 from flask import Flask, request
 from flask_restx import Api
-from extensions import db, migrate, jwt, api, ma, mail
+from .extensions import db, migrate, jwt, api, ma, mail
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_migrate import Migrate
-from models import (
+from .models import (
     Deliverable, Invoice, Message, Milestone, Payment,
     ProjectApplication, Project, Review, Skill, TimeLog,
     User, FreelancerProfile, ClientProfile, Dispute, Policy
 )
-from config import DevConfig
-from routes import init_routes
-from routes.auth import auth_ns
-from routes.applications import register_routes as register_applications
-from routes.invoices import register_routes as register_invoices
-from routes.receipts import register_routes as register_receipts
-from routes.payments import register_routes as register_payments
-from routes.freelancer import register_routes as register_freelancer
+from .config import DevConfig
+from .routes import init_routes
+from .routes.auth import auth_ns
+from .routes.applications import register_routes as register_applications
+from .routes.invoices import register_routes as register_invoices
+from .routes.receipts import register_routes as register_receipts
+from .routes.payments import register_routes as register_payments
+from .routes.freelancer import register_routes as register_freelancer
 
 def create_app(config=DevConfig):
     app = Flask(__name__)

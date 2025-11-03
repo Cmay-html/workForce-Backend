@@ -1,13 +1,13 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from extensions import db, api
-from auth import admin_required, create_token
-from utils import paginate_query
+from ..extensions import db, api
+from ..auth import admin_required, create_token
+from ..utils import paginate_query
 from datetime import datetime
 from sqlalchemy import func
 
 # Import all models and their schemas cleanly from the models package
-from models import (
+from ..models import (
     User, UserSchema, ClientProfile, ClientProfileSchema, FreelancerProfile, FreelancerProfileSchema,
     Project, ProjectSchema, Milestone, MilestoneSchema, Dispute, DisputeSchema,
     Deliverable, DeliverableSchema, Invoice, InvoiceSchema, Payment, PaymentSchema,

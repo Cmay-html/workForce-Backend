@@ -1,8 +1,8 @@
 from flask import request
 from flask_restx import Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from extensions import db
-from models import Payment, Invoice
+from ..extensions import db
+from ..models import Payment, Invoice
 from http import HTTPStatus
 import logging
 

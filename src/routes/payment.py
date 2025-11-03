@@ -6,7 +6,7 @@ from functools import wraps
 from dotenv import load_dotenv
 from datetime import datetime, timezone, timedelta
 from models import Payment, ClientProfile, Invoice
-from extensions import db
+from ..extensions import db
 from http import HTTPStatus
 import logging
 

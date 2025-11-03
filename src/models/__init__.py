@@ -1,5 +1,5 @@
 # models/__init__.py
-from extensions import db
+from ..extensions import db
 
 # Import all models first (without schemas)
 from .user import User, ClientProfile, FreelancerProfile

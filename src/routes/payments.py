@@ -1,10 +1,10 @@
 # routes/payments.py
 from flask_restx import Namespace, Resource, fields, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from extensions import db
-from models.user import ClientProfile, FreelancerProfile, User
-from models.invoice import Invoice
-from models.payment import Payment
+from ..extensions import db
+from ..models.user import ClientProfile, FreelancerProfile, User
+from ..models.invoice import Invoice
+from ..models.payment import Payment
 from http import HTTPStatus
 import logging
 import requests

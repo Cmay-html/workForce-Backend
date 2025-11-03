@@ -1,4 +1,4 @@
-from extensions import db
+from ..extensions import db
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 class Skill(db.Model):
