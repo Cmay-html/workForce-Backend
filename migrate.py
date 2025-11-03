@@ -15,23 +15,25 @@ if not db_url:
 
 from src.app import create_app
 from src.config import ProdConfig
-from src.extensions import db, migrate
+from src.extensions import db
+from flask_migrate import upgrade, stamp
 
 app = create_app(ProdConfig)
 
 with app.app_context():
-    # Create all tables
+    # Create all tables first (safe for existing tables)
     db.create_all()
+    print("Tables created/verified")
 
-    # Run migrations if needed
+    # Run migrations to add any missing columns
     try:
-        migrate.upgrade()
+        upgrade()
         print("Database migration completed successfully")
     except Exception as e:
         print(f"Migration failed: {e}")
         # If migration fails, try to stamp the current version
         try:
-            migrate.stamp()
+            stamp()
             print("Database stamped to current version")
         except Exception as stamp_error:
             print(f"Stamping also failed: {stamp_error}")
