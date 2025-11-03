@@ -48,6 +48,14 @@ def create_app(config=DevConfig):
     ma.init_app(app)
     mail.init_app(app)
 
+    # Optional safety net: create tables automatically if allowed (useful on fresh DBs)
+    if os.getenv('AUTO_CREATE_TABLES', 'true').lower() == 'true':
+        try:
+            with app.app_context():
+                db.create_all()
+        except Exception as e:
+            app.logger.error(f"Auto table creation failed: {e}")
+
     # Register namespaces
     init_routes()
     api.add_namespace(auth_ns, path='/api/auth')
