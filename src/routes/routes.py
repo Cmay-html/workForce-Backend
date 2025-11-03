@@ -40,9 +40,12 @@ dispute_resolution_model = admin_ns.model('DisputeResolution', {
 
 
 def init_routes():
-    """Initializes all API routes by adding namespaces to the API object."""
+    """Initializes core API routes by adding namespaces to the API object.
+
+    Note: Auth namespace is registered in src/routes/auth.py to avoid duplicate
+    registrations and route conflicts.
+    """
     api.add_namespace(admin_ns, path='/api/admin')
-    api.add_namespace(auth_ns, path='/api/auth')
 
 
 #Authentication Routes
