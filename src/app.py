@@ -106,6 +106,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Initialize API
 api = Api(
     app,
+    prefix='/api',
     title='Kazi Flow API',
     description='Freelancer and Client APIs',
     security='Bearer'
