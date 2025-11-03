@@ -3,7 +3,9 @@ import psycopg2
 from dotenv import load_dotenv
 from datetime import timedelta
 
-load_dotenv()
+# Always load the .env that lives alongside this file (src/.env)
+ENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=ENV_PATH, override=False)
 
 class Config:
     # Flask settings
