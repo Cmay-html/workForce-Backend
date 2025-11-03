@@ -35,8 +35,9 @@ class DevConfig(Config):
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@workforce.com')
 
 class ProdConfig(Config):
-    SQLALCHEMY_TRACK_MODIFICATIONS = True
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = False
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
 
 # Map environments to config classes
 config = {
