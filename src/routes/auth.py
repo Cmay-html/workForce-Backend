@@ -286,3 +286,59 @@ class WhoAmI(Resource):
     def get(self):
         identity = get_jwt_identity()
         return {'identity': identity}, HTTPStatus.OK
+
+admin_creation_model = auth_ns.model('AdminCreation', {
+    'email': fields.String(required=True, description='Admin email address'),
+    'password': fields.String(required=True, description='Admin password'),
+    'secret_key': fields.String(required=True, description='Admin creation secret key')
+})
+
+@auth_ns.route('/create-admin')
+class CreateAdmin(Resource):
+    @auth_ns.expect(admin_creation_model)
+    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED)
+    def post(self):
+        """Create an admin user (requires secret key)"""
+        import os
+        data = request.get_json()
+        
+        # Verify secret key
+        ADMIN_SECRET = os.getenv('ADMIN_CREATION_SECRET', 'your-super-secret-admin-key-2024')
+        if data.get('secret_key') != ADMIN_SECRET:
+            logger.error("Invalid admin creation secret key")
+            return {'message': 'Unauthorized'}, HTTPStatus.UNAUTHORIZED
+        
+        logger.info(f"Admin creation attempt for email: {data['email']}")
+        
+        # Check if admin already exists
+        if User.query.filter_by(email=data['email']).first():
+            logger.error(f"Email {data['email']} already exists")
+            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+        
+        # Create admin user
+        admin = User(
+            email=data['email'],
+            password_hash=generate_password_hash(data['password']),
+            role='admin',
+            is_verified=True,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(admin)
+        db.session.commit()
+        
+        logger.info(f"Admin user created successfully: {admin.email}")
+        
+        # Generate tokens
+        access_token = create_access_token(identity=str(admin.id))
+        refresh_token = create_refresh_token(identity=str(admin.id))
+        
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': admin.id,
+                'email': admin.email,
+                'role': admin.role,
+                'created_at': admin.created_at.isoformat()
+            }
+        }, HTTPStatus.CREATED
