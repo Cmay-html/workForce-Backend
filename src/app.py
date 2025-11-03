@@ -109,6 +109,21 @@ def create_app(config=DevConfig):
     # Logging setup
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+    # Simple DB health endpoint to inspect users table columns
+    @app.get('/_dbcheck')
+    def _dbcheck():
+        from sqlalchemy import text
+        rows = db.session.execute(text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='users'
+            ORDER BY column_name
+            """
+        )).mappings().all()
+        cols = [r['column_name'] for r in rows]
+        return {"users_columns": cols}, 200
+
     return app
 
 
