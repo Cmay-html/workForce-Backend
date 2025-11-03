@@ -1,4 +1,5 @@
 from ..extensions import db, ma
+from .skill import FreelancerSkill
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone, timedelta
@@ -100,8 +101,9 @@ class FreelancerProfile(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', back_populates='freelancer_profile')
-    # Many-to-many relationship with skills
-    skills = db.relationship('Skill', secondary='freelancer_skills', backref='freelancers')
+    # Many-to-many relationship with skills via association table
+    # Use the actual Table object to avoid string-resolution timing issues in production
+    skills = db.relationship('Skill', secondary=FreelancerSkill.__table__, backref='freelancers')
     # payments = db.relationship("Payment", backref="freelancer")
 
     def to_dict(self):
