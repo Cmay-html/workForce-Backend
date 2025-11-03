@@ -107,6 +107,39 @@ class RefreshToken(Resource):
         logger.info(f"Access token refreshed for user {current_user_id}")
         return {'access_token': access_token, 'refresh_token': None}, HTTPStatus.OK
 
+@auth_ns.route('/register/client')
+class RegisterClient(Resource):
+    @auth_ns.expect(auth_ns.model('ClientSignup', {
+        'email': fields.String(required=True, description='User email address'),
+        'password': fields.String(required=True, description='User password')
+    }))
+    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED)
+    def post(self):
+        """Register a new client user"""
+        data = request.get_json()
+        logger.info(f"Client registration attempt for email: {data['email']}")
+
+        # Validate email uniqueness
+        if User.query.filter_by(email=data['email']).first():
+            logger.error(f"Email {data['email']} already exists")
+            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+
+        # Create new client user
+        user = User(
+            email=data['email'],
+            password_hash=generate_password_hash(data['password']),
+            role='client',
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        # Generate JWT tokens
+        access_token = create_access_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=user.id)
+        logger.info(f"Client {user.id} registered successfully")
+        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
+
 @auth_ns.route('/me')
 class UserProfile(Resource):
     @auth_ns.marshal_with(auth_ns.model('User', {

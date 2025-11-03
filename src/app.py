@@ -44,8 +44,7 @@ def create_app(config=DevConfig):
                 "https://workforceflows.netlify.app",
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "http://localhost:8080",
-                "*"  # Allow all origins for now
+                "http://localhost:8080"
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
@@ -91,8 +90,7 @@ CORS(app, resources={
             "https://workforceflows.netlify.app",
             "http://localhost:3000",
             "http://localhost:5173",
-            "http://localhost:8080",
-            "*"  # Allow all origins for now
+            "http://localhost:8080"
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
