@@ -1,13 +1,13 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from src.extensions import db, api
-from src.auth import admin_required, create_token
-from src.utils import paginate_query
+from extensions import db, api
+from auth import admin_required, create_token
+from utils import paginate_query
 from datetime import datetime
 from sqlalchemy import func
 
 # Import all models and their schemas cleanly from the models package
-from src.models import (
+from models import (
     User, UserSchema, ClientProfile, ClientProfileSchema, FreelancerProfile, FreelancerProfileSchema,
     Project, ProjectSchema, Milestone, MilestoneSchema, Dispute, DisputeSchema,
     Deliverable, DeliverableSchema, Invoice, InvoiceSchema, Payment, PaymentSchema,
@@ -50,7 +50,7 @@ def init_routes():
 class Signup(Resource):
     @auth_ns.expect(signup_model, validate=True)
     def post(self):
-        from src.utils import send_verification_email
+        from utils import send_verification_email
         from flask import request, current_app
         import logging
 

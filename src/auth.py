@@ -1,8 +1,8 @@
 from functools import wraps
 from flask import request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
-from src.extensions import jwt
-from src.models import User
+from extensions import jwt
+from models import User
 
 # Initialize JWT manager (configured in app.py)
 jwt = JWTManager()
@@ -27,7 +27,7 @@ def create_token(user):
 from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
-from src.models.user import User
+from models.user import User
 
 
 def role_required(roles):

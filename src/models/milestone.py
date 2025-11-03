@@ -1,4 +1,4 @@
-from src.extensions import db
+from extensions import db
 from sqlalchemy.dialects.postgresql import NUMERIC
 from datetime import date, datetime
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema

@@ -1,5 +1,5 @@
 # models/__init__.py
-from src.extensions import db
+from extensions import db
 
 # Import all models first (without schemas)
 from .user import User, ClientProfile, FreelancerProfile
@@ -35,9 +35,9 @@ from .policy import PolicySchema
 TimeEntry = TimeLog
 from .user import User, FreelancerProfile, ClientProfile
 
-# Import from src.models.py for backward compatibility
+# Import from models.py for backward compatibility
 try:
-    from src.models import Application, Job
+    from models import Application, Job
 except ImportError:
     # Fallback if models.py doesn't exist
     Application = None

@@ -1,4 +1,4 @@
-from src.extensions import db, ma
+from extensions import db, ma
 from datetime import datetime, timezone
 
 class Project(db.Model):

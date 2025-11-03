@@ -2,10 +2,10 @@
 from flask import request
 from flask_restx import Namespace, Resource, reqparse, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from src.extensions import db
-from src.models.user import FreelancerProfile, User
-from src.models.project_application import ProjectApplication
-from src.models.project import Project
+from extensions import db
+from models.user import FreelancerProfile, User
+from models.project_application import ProjectApplication
+from models.project import Project
 from http import HTTPStatus
 import logging
 

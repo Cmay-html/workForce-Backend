@@ -5,8 +5,8 @@ from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identi
 from functools import wraps
 from dotenv import load_dotenv
 from datetime import datetime, timezone, timedelta
-from src.models import Payment, ClientProfile, Invoice
-from src.extensions import db
+from models import Payment, ClientProfile, Invoice
+from extensions import db
 from http import HTTPStatus
 import logging
 

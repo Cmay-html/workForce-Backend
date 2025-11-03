@@ -2,8 +2,8 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.extensions import db
-from src.models import Milestone, Project, User
+from extensions import db
+from models import Milestone, Project, User
 from datetime import datetime
 
 # Create namespace

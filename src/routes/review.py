@@ -2,8 +2,8 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.extensions import db
-from src.models import Review, Project, User
+from extensions import db
+from models import Review, Project, User
 
 # Create namespace
 api = Namespace('reviews', description='Review operations')

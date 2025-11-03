@@ -1,8 +1,8 @@
 from flask import request
 from flask_restx import Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.extensions import db
-from src.models import Application, Job
+from extensions import db
+from models import Application, Job
 from datetime import datetime, timezone
 from http import HTTPStatus
 # from auth_middleware import role_required  # Commented out as middleware doesn't exist

@@ -1,8 +1,8 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
-from src.extensions import db
-from src.models import User, FreelancerProfile
+from extensions import db
+from models import User, FreelancerProfile
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from http import HTTPStatus

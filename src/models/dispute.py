@@ -1,5 +1,5 @@
 # models/dispute.py
-from src.extensions import db, ma
+from extensions import db, ma
 from datetime import datetime
 
 class Dispute(db.Model):

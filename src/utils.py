@@ -1,7 +1,7 @@
 import os
 from flask import url_for
 from flask_mail import Message
-from src.extensions import mail
+from extensions import mail
 from urllib.parse import quote
 
 def send_verification_email(user, base_url):

@@ -3,23 +3,23 @@ import os
 import logging
 from flask import Flask, request
 from flask_restx import Api
-from src.extensions import db, migrate, jwt, api, ma, mail
+from extensions import db, migrate, jwt, api, ma, mail
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_migrate import Migrate
-from src.models import (
+from models import (
     Deliverable, Invoice, Message, Milestone, Payment,
     ProjectApplication, Project, Review, Skill, TimeLog,
     User, FreelancerProfile, ClientProfile, Dispute, Policy
 )
-from src.config import DevConfig
-from src.routes import init_routes
-from src.routes.auth import auth_ns
-from src.routes.applications import register_routes as register_applications
-from src.routes.invoices import register_routes as register_invoices
-from src.routes.receipts import register_routes as register_receipts
-from src.routes.payments import register_routes as register_payments
-from src.routes.freelancer import register_routes as register_freelancer
+from config import DevConfig
+from routes import init_routes
+from routes.auth import auth_ns
+from routes.applications import register_routes as register_applications
+from routes.invoices import register_routes as register_invoices
+from routes.receipts import register_routes as register_receipts
+from routes.payments import register_routes as register_payments
+from routes.freelancer import register_routes as register_freelancer
 
 def create_app(config=DevConfig):
     app = Flask(__name__)
@@ -48,7 +48,8 @@ def create_app(config=DevConfig):
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-            "supports_credentials": True
+            "supports_credentials": True,
+            "expose_headers": ["X-Total-Count", "X-Page-Count"]
         }
     })
     migrate.init_app(app, db)
@@ -95,7 +96,8 @@ CORS(app, resources={
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-        "supports_credentials": True
+        "supports_credentials": True,
+        "expose_headers": ["X-Total-Count", "X-Page-Count"]
     }
 })
 db.init_app(app)
@@ -119,6 +121,7 @@ register_invoices(api.namespace('invoices', description='Invoice Management', pa
 register_receipts(api.namespace('freelancer/payments', description='Freelancer Payment History', path='/api/freelancer/payments'))
 register_payments(api.namespace('client/payments', description='Client Payment Operations', path='/api/client/payments'))
 register_freelancer(api.namespace('freelancer', description='Freelancer Journey', path='/api/freelancer'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

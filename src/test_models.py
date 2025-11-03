@@ -1,6 +1,6 @@
 from flask import Flask
-from src.extensions import db, ma
-from src.models.user import User, ClientProfile, FreelancerProfile
+from extensions import db, ma
+from models.user import User, ClientProfile, FreelancerProfile
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
