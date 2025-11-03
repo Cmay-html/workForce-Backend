@@ -25,6 +25,10 @@ def create_app(config=DevConfig):
     app = Flask(__name__)
     app.config.from_object(config)
 
+    # Ensure database URI is set
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
+
     # Configure from environment variables if not in config
     if 'JWT_ACCESS_TOKEN_EXPIRES' not in app.config:
         app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 900  # 15 minutes
