@@ -33,7 +33,20 @@ def create_app(config=DevConfig):
 
     # Initialize extensions
     db.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": [
+                "https://6908506926707cce75213659--workforceflows.netlify.app",
+                "https://workforceflows.netlify.app",
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:8080"
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+            "supports_credentials": True
+        }
+    })
     migrate.init_app(app, db)
     api.init_app(app)
     jwt.init_app(app)
@@ -66,7 +79,20 @@ app.config['FLASK_SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your_flask_secre
 
 # Initialize extensions
 jwt = JWTManager(app)
-CORS(app, origins="*")
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "https://6908506926707cce75213659--workforceflows.netlify.app",
+            "https://workforceflows.netlify.app",
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8080"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+        "supports_credentials": True
+    }
+})
 db.init_app(app)
 migrate.init_app(app, db)
 
