@@ -111,11 +111,13 @@ class RefreshToken(Resource):
 class RegisterClient(Resource):
     @auth_ns.expect(auth_ns.model('ClientSignup', {
         'email': fields.String(required=True, description='User email address'),
-        'password': fields.String(required=True, description='User password')
+        'password': fields.String(required=True, description='User password'),
+        'company_name': fields.String(required=False, description='Company name'),
+        'industry': fields.String(required=False, description='Industry')
     }))
     @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED)
     def post(self):
-        """Register a new client user"""
+        """Register a new client user with profile"""
         data = request.get_json()
         logger.info(f"Client registration attempt for email: {data['email']}")
 
@@ -132,12 +134,81 @@ class RegisterClient(Resource):
             created_at=datetime.now(timezone.utc)
         )
         db.session.add(user)
+        db.session.flush()  # Get user ID
+        
+        # Create client profile
+        from ..models import ClientProfile
+        client_profile = ClientProfile(
+            user_id=user.id,
+            company_name=data.get('company_name'),
+            industry=data.get('industry'),
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(client_profile)
         db.session.commit()
 
         # Generate JWT tokens
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
         logger.info(f"Client {user.id} registered successfully")
+        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
+
+@auth_ns.route('/register/freelancer')
+class RegisterFreelancer(Resource):
+    @auth_ns.expect(auth_ns.model('FreelancerSignup', {
+        'email': fields.String(required=True, description='User email address'),
+        'password': fields.String(required=True, description='User password'),
+        'hourly_rate': fields.Float(required=False, description='Hourly rate'),
+        'bio': fields.String(required=False, description='Bio'),
+        'skills': fields.List(fields.String, required=False, description='List of skill names')
+    }))
+    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED)
+    def post(self):
+        """Register a new freelancer user with profile"""
+        data = request.get_json()
+        logger.info(f"Freelancer registration attempt for email: {data['email']}")
+
+        # Validate email uniqueness
+        if User.query.filter_by(email=data['email']).first():
+            logger.error(f"Email {data['email']} already exists")
+            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+
+        # Create new freelancer user
+        user = User(
+            email=data['email'],
+            password_hash=generate_password_hash(data['password']),
+            role='freelancer',
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(user)
+        db.session.flush()  # Get user ID
+        
+        # Create freelancer profile
+        freelancer_profile = FreelancerProfile(
+            user_id=user.id,
+            hourly_rate=data.get('hourly_rate'),
+            bio=data.get('bio'),
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(freelancer_profile)
+        db.session.flush()
+        
+        # Handle skills if provided
+        if data.get('skills'):
+            from ..models import Skill
+            for skill_name in data['skills']:
+                skill = Skill.query.filter_by(name=skill_name).first()
+                if not skill:
+                    skill = Skill(name=skill_name)
+                    db.session.add(skill)
+                freelancer_profile.skills.append(skill)
+        
+        db.session.commit()
+
+        # Generate JWT tokens
+        access_token = create_access_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=user.id)
+        logger.info(f"Freelancer {user.id} registered successfully")
         return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
 
 @auth_ns.route('/me')
