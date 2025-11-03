@@ -2,13 +2,14 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 from datetime import timedelta
+from typing import Optional
 
 # Always load the .env that lives alongside this file (src/.env)
 ENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=ENV_PATH, override=False)
 
 
-def normalize_db_url(url: str | None) -> str | None:
+def normalize_db_url(url: Optional[str]) -> Optional[str]:
     """Normalize database URL for SQLAlchemy.
 
     - Convert postgres:// to postgresql+psycopg2:// (older provider style)
