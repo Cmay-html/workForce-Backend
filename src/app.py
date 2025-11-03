@@ -56,6 +56,35 @@ def create_app(config=DevConfig):
         except Exception as e:
             app.logger.error(f"Auto table creation failed: {e}")
 
+    # Optional safety net: ensure critical columns exist (helps when migrations are skipped)
+    if os.getenv('AUTO_PATCH_SCHEMA', 'true').lower() == 'true':
+        try:
+            from sqlalchemy import text
+            with app.app_context():
+                # Add users.verification_token if missing
+                db.session.execute(text(
+                    """
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name='users' AND column_name='verification_token'
+                        ) THEN
+                            ALTER TABLE users ADD COLUMN verification_token VARCHAR(255);
+                        END IF;
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name='users' AND column_name='token_expires_at'
+                        ) THEN
+                            ALTER TABLE users ADD COLUMN token_expires_at TIMESTAMP;
+                        END IF;
+                    END $$;
+                    """
+                ))
+                db.session.commit()
+        except Exception as e:
+            app.logger.error(f"Schema auto-patch failed: {e}")
+
     # Register namespaces
     init_routes()
     api.add_namespace(auth_ns, path='/api/auth')
