@@ -106,19 +106,18 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Initialize API
 api = Api(
     app,
-    prefix='/api',
     title='Kazi Flow API',
     description='Freelancer and Client APIs',
     security='Bearer'
 )
 
 # Register namespaces
-register_applications(api.namespace('applications', description='Application Management'))
-api.add_namespace(auth_ns, path='/auth')
-register_invoices(api.namespace('invoices', description='Invoice Management'))
-register_receipts(api.namespace('freelancer/payments', description='Freelancer Payment History'))
-register_payments(api.namespace('client/payments', description='Client Payment Operations'))
-register_freelancer(api.namespace('freelancer', description='Freelancer Journey'))
+register_applications(api.namespace('applications', description='Application Management', path='/api/applications'))
+api.add_namespace(auth_ns, path='/api/auth')
+register_invoices(api.namespace('invoices', description='Invoice Management', path='/api/invoices'))
+register_receipts(api.namespace('freelancer/payments', description='Freelancer Payment History', path='/api/freelancer/payments'))
+register_payments(api.namespace('client/payments', description='Client Payment Operations', path='/api/client/payments'))
+register_freelancer(api.namespace('freelancer', description='Freelancer Journey', path='/api/freelancer'))
 
 if __name__ == '__main__':
     app.run(debug=True)
