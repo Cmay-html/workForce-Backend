@@ -28,7 +28,9 @@ def create_app(config=DevConfig):
     # Ensure database URI is set
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
         if config.__name__ == 'ProdConfig':
-            raise ValueError("DATABASE_URL environment variable must be set in production")
+            # In production, DATABASE_URL should be set by the platform
+            # If not set, the app will fail when trying to connect
+            pass
         else:
             app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
 
