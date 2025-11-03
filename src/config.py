@@ -7,13 +7,27 @@ from datetime import timedelta
 ENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=ENV_PATH, override=False)
 
+
+def normalize_db_url(url: str | None) -> str | None:
+    """Normalize database URL for SQLAlchemy.
+
+    - Convert postgres:// to postgresql+psycopg2:// (older provider style)
+    """
+    if not url:
+        return url
+    if url.startswith('postgres://'):
+        return url.replace('postgres://', 'postgresql+psycopg2://', 1)
+    return url
+
 class Config:
     # Flask settings
     SECRET_KEY = os.getenv('SECRET_KEY', 'default-secret-key')  # Added for Flask security
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
 
     # Database settings
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
+    SQLALCHEMY_DATABASE_URI = normalize_db_url(
+        os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI') or 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb'
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # Moved to base Config
 
     # JWT settings
@@ -23,7 +37,9 @@ class Config:
 class DevConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
+    SQLALCHEMY_DATABASE_URI = normalize_db_url(
+        os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI') or 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb'
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'bd6f47d5fbe6130531225d993ce47f56')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
@@ -39,7 +55,9 @@ class DevConfig(Config):
 class ProdConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = normalize_db_url(
+        os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI')
+    )
     if not SQLALCHEMY_DATABASE_URI:
         # In production, we should not default to localhost
         # Let the app handle missing DATABASE_URL gracefully

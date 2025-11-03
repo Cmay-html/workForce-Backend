@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 
 import os
+from dotenv import load_dotenv
 
-# Check if DATABASE_URL is set
-if not os.getenv('DATABASE_URL'):
-    print("DATABASE_URL environment variable is not set. Skipping database operations.")
+# Load local .env for dev runs (has no effect on Render unless file is present and allowed)
+ENV_PATH = os.path.join(os.path.dirname(__file__), 'src', '.env')
+load_dotenv(dotenv_path=ENV_PATH, override=False)
+
+# Check for DB URL in common vars
+db_url = os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI')
+if not db_url:
+    print("DATABASE_URL/SQLALCHEMY_DATABASE_URI not set. Skipping database operations.")
     exit(0)
 
 from src.app import create_app
