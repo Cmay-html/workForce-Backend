@@ -37,7 +37,7 @@ class DevConfig(Config):
 class ProdConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
 
 # Map environments to config classes
 config = {
