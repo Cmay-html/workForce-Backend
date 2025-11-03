@@ -11,7 +11,7 @@ class Config:
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
 
     # Database settings
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # Moved to base Config
 
     # JWT settings
