@@ -249,3 +249,10 @@ class UserProfile(Resource):
             'role': user.role,
             'created_at': user.created_at.isoformat() if getattr(user, 'created_at', None) else None,
         }, HTTPStatus.OK
+
+@auth_ns.route('/whoami')
+class WhoAmI(Resource):
+    @jwt_required()
+    def get(self):
+        identity = get_jwt_identity()
+        return {'identity': identity}, HTTPStatus.OK
