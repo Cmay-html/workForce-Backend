@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+import os
+
+# Check if DATABASE_URL is set
+if not os.getenv('DATABASE_URL'):
+    print("DATABASE_URL environment variable is not set. Skipping database operations.")
+    exit(0)
+
 from src.app import create_app
 from src.config import ProdConfig
 from src.extensions import db, migrate
