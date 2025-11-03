@@ -115,7 +115,7 @@ class RegisterClient(Resource):
         'company_name': fields.String(required=False, description='Company name'),
         'industry': fields.String(required=False, description='Industry')
     }))
-    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED)
+    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED, description='Returns access and refresh tokens')
     def post(self):
         """Register a new client user with profile"""
         data = request.get_json()
@@ -151,7 +151,17 @@ class RegisterClient(Resource):
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
         logger.info(f"Client {user.id} registered successfully")
-        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
+        # Also return minimal user payload to allow frontend redirect by role
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'created_at': user.created_at.isoformat() if getattr(user, 'created_at', None) else None,
+            }
+        }, HTTPStatus.CREATED
 
 @auth_ns.route('/register/freelancer')
 class RegisterFreelancer(Resource):
@@ -162,7 +172,7 @@ class RegisterFreelancer(Resource):
         'bio': fields.String(required=False, description='Bio'),
         'skills': fields.List(fields.String, required=False, description='List of skill names')
     }))
-    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED)
+    @auth_ns.marshal_with(token_response_model, code=HTTPStatus.CREATED, description='Returns access and refresh tokens')
     def post(self):
         """Register a new freelancer user with profile"""
         data = request.get_json()
@@ -209,20 +219,29 @@ class RegisterFreelancer(Resource):
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
         logger.info(f"Freelancer {user.id} registered successfully")
-        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
+        # Also return minimal user payload to allow frontend redirect by role
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'created_at': user.created_at.isoformat() if getattr(user, 'created_at', None) else None,
+            }
+        }, HTTPStatus.CREATED
 
 @auth_ns.route('/me')
 class UserProfile(Resource):
-    @auth_ns.marshal_with(auth_ns.model('User', {
-        'id': fields.Integer,
-        'email': fields.String,
-        'role': fields.String,
-        'created_at': fields.DateTime
-    }))
     @jwt_required()
     def get(self):
         """Get the authenticated user's profile"""
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
         logger.info(f"Profile retrieved for user {user_id}")
-        return user, HTTPStatus.OK
+        return {
+            'id': user.id,
+            'email': user.email,
+            'role': user.role,
+            'created_at': user.created_at.isoformat() if getattr(user, 'created_at', None) else None,
+        }, HTTPStatus.OK
