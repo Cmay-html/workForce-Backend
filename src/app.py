@@ -14,7 +14,7 @@ from src.models import (
 )
 from src.config import DevConfig
 from src.routes import init_routes
-from src.routes.routes import auth_ns
+from src.routes.auth import auth_ns
 from src.routes.applications import register_routes as register_applications
 from src.routes.invoices import register_routes as register_invoices
 from src.routes.receipts import register_routes as register_receipts
@@ -57,6 +57,7 @@ def create_app(config=DevConfig):
     ma.init_app(app)
     mail.init_app(app)
     init_routes()
+    api.add_namespace(auth_ns, path='/api/auth')
 
     @app.before_request
     def log_request_info():
