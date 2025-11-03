@@ -2,6 +2,7 @@
 from ..extensions import db
 
 # Import all models first (without schemas)
+from .skill import Skill, FreelancerSkill
 from .user import User, ClientProfile, FreelancerProfile
 from .project import Project
 from .milestone import Milestone
@@ -11,7 +12,7 @@ from .invoice import Invoice
 from .payment import Payment
 from .message import Message
 from .review import Review
-from .skill import Skill, FreelancerSkill
+# skill already imported above
 from .time_log import TimeLog
 from .project_application import ProjectApplication
 from .policy import Policy
