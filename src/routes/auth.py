@@ -26,9 +26,17 @@ login_model = auth_ns.model('Login', {
     'password': fields.String(required=True, description='User password')
 })
 
+user_data_model = auth_ns.model('UserData', {
+    'id': fields.Integer(description='User ID'),
+    'email': fields.String(description='User email'),
+    'role': fields.String(description='User role'),
+    'created_at': fields.String(description='Account creation timestamp')
+})
+
 token_response_model = auth_ns.model('TokenResponse', {
     'access_token': fields.String(description='JWT access token'),
-    'refresh_token': fields.String(description='JWT refresh token')
+    'refresh_token': fields.String(description='JWT refresh token'),
+    'user': fields.Nested(user_data_model, description='User data for frontend routing', skip_none=True)
 })
 
 @auth_ns.route('/signup')
@@ -75,7 +83,16 @@ class Signup(Resource):
         access_token = create_access_token(identity=str(user.id))
         refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} signed up successfully")
-        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'created_at': user.created_at.isoformat() if getattr(user, 'created_at', None) else None,
+            }
+        }, HTTPStatus.CREATED
 
 @auth_ns.route('/login')
 class Login(Resource):
@@ -91,10 +108,23 @@ class Login(Resource):
             logger.error(f"Invalid credentials for email: {data['email']}")
             return {'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
 
+        # Update last login
+        user.last_login = datetime.now(timezone.utc)
+        db.session.commit()
+
         access_token = create_access_token(identity=str(user.id))
         refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} logged in successfully")
-        return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.OK
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'created_at': user.created_at.isoformat() if getattr(user, 'created_at', None) else None,
+            }
+        }, HTTPStatus.OK
 
 @auth_ns.route('/refresh')
 class RefreshToken(Resource):
