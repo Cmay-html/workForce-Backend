@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 from src.app import create_app
-from src.config import DevConfig
+from src.config import ProdConfig
 from src.extensions import db, migrate
 
-app = create_app(DevConfig)
+app = create_app(ProdConfig)
 
 with app.app_context():
     # Create all tables
