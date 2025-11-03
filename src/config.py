@@ -39,7 +39,9 @@ class ProdConfig(Config):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     if not SQLALCHEMY_DATABASE_URI:
-        raise ValueError("DATABASE_URL environment variable must be set in production")
+        # In production, we should not default to localhost
+        # Let the app handle missing DATABASE_URL gracefully
+        pass
 
 # Map environments to config classes
 config = {

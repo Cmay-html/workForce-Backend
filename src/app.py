@@ -27,7 +27,10 @@ def create_app(config=DevConfig):
 
     # Ensure database URI is set
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
-        app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
+        if config.__name__ == 'ProdConfig':
+            raise ValueError("DATABASE_URL environment variable must be set in production")
+        else:
+            app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb')
 
     # Configure from environment variables if not in config
     if 'JWT_ACCESS_TOKEN_EXPIRES' not in app.config:
