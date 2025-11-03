@@ -72,8 +72,8 @@ class Signup(Resource):
             logger.info(f"FreelancerProfile created for user_id: {user.id}")
 
         # Generate JWT tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} signed up successfully")
         return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.CREATED
 
@@ -91,8 +91,8 @@ class Login(Resource):
             logger.error(f"Invalid credentials for email: {data['email']}")
             return {'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
 
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} logged in successfully")
         return {'access_token': access_token, 'refresh_token': refresh_token}, HTTPStatus.OK
 
@@ -103,7 +103,7 @@ class RefreshToken(Resource):
     def post(self):
         """Refresh an access token using a refresh token"""
         current_user_id = get_jwt_identity()
-        access_token = create_access_token(identity=current_user_id)
+        access_token = create_access_token(identity=str(current_user_id))
         logger.info(f"Access token refreshed for user {current_user_id}")
         return {'access_token': access_token, 'refresh_token': None}, HTTPStatus.OK
 
@@ -148,8 +148,8 @@ class RegisterClient(Resource):
         db.session.commit()
 
         # Generate JWT tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"Client {user.id} registered successfully")
         # Also return minimal user payload to allow frontend redirect by role
         return {
@@ -216,8 +216,8 @@ class RegisterFreelancer(Resource):
         db.session.commit()
 
         # Generate JWT tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"Freelancer {user.id} registered successfully")
         # Also return minimal user payload to allow frontend redirect by role
         return {
@@ -237,7 +237,11 @@ class UserProfile(Resource):
     def get(self):
         """Get the authenticated user's profile"""
         user_id = get_jwt_identity()
-        user = User.query.get_or_404(user_id)
+        try:
+            uid = int(user_id)
+        except (TypeError, ValueError):
+            uid = user_id
+        user = User.query.get_or_404(uid)
         logger.info(f"Profile retrieved for user {user_id}")
         return {
             'id': user.id,
