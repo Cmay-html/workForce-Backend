@@ -3,7 +3,7 @@ import os
 import logging
 from flask import Flask, request
 from flask_cors import CORS
-from .extensions import db, migrate, jwt, api, ma, mail
+from .extensions import db, migrate, jwt, api, ma, mail, socketio
 from .config import DevConfig
 from .routes import init_routes
 from .routes.auth import auth_ns
@@ -12,6 +12,9 @@ from .routes.invoices import register_routes as register_invoices
 from .routes.receipts import register_routes as register_receipts
 from .routes.payments import register_routes as register_payments
 from .routes.freelancer import register_routes as register_freelancer
+from .routes.freelancers_list import api as freelancers_ns
+from .routes.chat import api as chat_ns
+from .routes.projects import api as projects_ns
 from . import models  # ensure models are imported for mapper configuration
 
 
@@ -46,6 +49,34 @@ def create_app(config=DevConfig):
     migrate.init_app(app, db)
     api.init_app(app)
     jwt.init_app(app)
+    # Initialize Socket.IO with same allowed origins as CORS
+    try:
+        origins = [o for o in allowed_origins if o]
+    except Exception:
+        origins = ['*']
+    socketio.init_app(app, cors_allowed_origins=origins)
+
+    # JWT error handlers for clearer client feedback
+    @jwt.unauthorized_loader
+    def _jwt_unauthorized_callback(err_msg):
+        return {"success": False, "message": f"Unauthorized: {err_msg}"}, 401
+
+    @jwt.invalid_token_loader
+    def _jwt_invalid_token_callback(err_msg):
+        # Common when old tokens have integer sub (subject) and library expects string
+        return {"success": False, "message": f"Invalid token: {err_msg}. Please log in again."}, 401
+
+    @jwt.expired_token_loader
+    def _jwt_expired_token_callback(jwt_header, jwt_payload):
+        return {"success": False, "message": "Token has expired. Please log in again."}, 401
+
+    @jwt.needs_fresh_token_loader
+    def _jwt_needs_fresh_callback(jwt_header, jwt_payload):
+        return {"success": False, "message": "Fresh token required."}, 401
+
+    @jwt.revoked_token_loader
+    def _jwt_revoked_token_callback(jwt_header, jwt_payload):
+        return {"success": False, "message": "Token has been revoked."}, 401
     ma.init_app(app)
     mail.init_app(app)
 
@@ -89,6 +120,9 @@ def create_app(config=DevConfig):
     # Register namespaces
     init_routes()
     api.add_namespace(auth_ns, path='/api/auth')
+    api.add_namespace(projects_ns, path='/api/projects')
+    api.add_namespace(freelancers_ns, path='/api/freelancers')
+    api.add_namespace(chat_ns, path='/api/chat')
     register_applications(api.namespace('applications', description='Application Management', path='/api/applications'))
     register_invoices(api.namespace('invoices', description='Invoice Management', path='/api/invoices'))
     register_receipts(api.namespace('freelancer/payments', description='Freelancer Payment History', path='/api/freelancer/payments'))
