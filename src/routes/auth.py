@@ -101,6 +101,12 @@ class Login(Resource):
     def post(self):
         """Authenticate a user and return JWT tokens"""
         data = request.get_json()
+        
+        # Validate required fields
+        if not data or 'email' not in data or 'password' not in data:
+            logger.error("Missing email or password in login request")
+            return {'message': 'Email and password are required'}, HTTPStatus.BAD_REQUEST
+        
         logger.info(f"Login attempt for email: {data['email']}")
 
         user = User.query.filter_by(email=data['email']).first()
@@ -133,6 +139,12 @@ class AdminLogin(Resource):
     def post(self):
         """Admin-specific login endpoint"""
         data = request.get_json()
+        
+        # Validate required fields
+        if not data or 'email' not in data or 'password' not in data:
+            logger.error("Missing email or password in admin login request")
+            return {'message': 'Email and password are required'}, HTTPStatus.BAD_REQUEST
+        
         logger.info(f"Admin login attempt for email: {data['email']}")
 
         user = User.query.filter_by(email=data['email']).first()
