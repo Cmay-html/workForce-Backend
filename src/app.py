@@ -109,11 +109,23 @@ def create_app(config=DevConfig):
         app.logger.debug('Headers: %s', request.headers)
         app.logger.debug('Body: %s', request.get_data())
 
-    # Graceful preflight handler for legacy frontend path
-    @app.route('/client/projects', methods=['OPTIONS'])
-    def _client_projects_preflight():
-        # CORS will attach the proper headers; 204 indicates successful preflight
-        return '', 204
+    # Legacy alias: forward /client/projects to /api/projects
+    @app.route('/client/projects', methods=['GET', 'POST', 'OPTIONS'])
+    def _client_projects_alias():
+        from flask import redirect, url_for
+        if request.method == 'OPTIONS':
+            # Preflight - return 204 with CORS headers
+            return '', 204
+        # Forward GET/POST to the actual projects endpoint
+        # Since Flask-RESTX handles /api/projects, we need to proxy the request
+        from .routes.projects import api as projects_ns
+        # Get the actual resource class for the list endpoint
+        from .routes.projects import ProjectList
+        resource = ProjectList()
+        if request.method == 'GET':
+            return resource.get()
+        elif request.method == 'POST':
+            return resource.post()
 
     @app.errorhandler(Exception)
     def handle_exception(e):
