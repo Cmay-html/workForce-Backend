@@ -54,6 +54,28 @@ def create_app(config=DevConfig):
     migrate.init_app(app, db)
     api.init_app(app)
     jwt.init_app(app)
+
+    # JWT error handlers for clearer client feedback
+    @jwt.unauthorized_loader
+    def _jwt_unauthorized_callback(err_msg):
+        return {"success": False, "message": f"Unauthorized: {err_msg}"}, 401
+
+    @jwt.invalid_token_loader
+    def _jwt_invalid_token_callback(err_msg):
+        # Common when old tokens have integer sub (subject) and library expects string
+        return {"success": False, "message": f"Invalid token: {err_msg}. Please log in again."}, 401
+
+    @jwt.expired_token_loader
+    def _jwt_expired_token_callback(jwt_header, jwt_payload):
+        return {"success": False, "message": "Token has expired. Please log in again."}, 401
+
+    @jwt.needs_fresh_token_loader
+    def _jwt_needs_fresh_callback(jwt_header, jwt_payload):
+        return {"success": False, "message": "Fresh token required."}, 401
+
+    @jwt.revoked_token_loader
+    def _jwt_revoked_token_callback(jwt_header, jwt_payload):
+        return {"success": False, "message": "Token has been revoked."}, 401
     ma.init_app(app)
     mail.init_app(app)
 
