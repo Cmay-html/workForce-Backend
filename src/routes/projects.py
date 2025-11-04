@@ -3,7 +3,7 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
-from models import Project, ProjectApplication, User
+from ..models import Project, ProjectApplication, User
 
 # Create namespace
 api = Namespace('projects', description='Project operations')
