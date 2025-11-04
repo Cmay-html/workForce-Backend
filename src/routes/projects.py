@@ -6,7 +6,8 @@ from ..extensions import db
 from ..models import Project, ProjectApplication, User
 
 # Create namespace
-api = Namespace('projects', description='Project operations')
+projects_ns = Namespace('projects', description='Project operations')
+api = projects_ns  # For compatibility with existing code
 
 # API models for Swagger documentation
 project_model = api.model('Project', {
