@@ -19,6 +19,8 @@ from . import models  # ensure models are imported for mapper configuration
 def create_app(config=DevConfig):
     app = Flask(__name__)
     app.config.from_object(config)
+    # Allow both with and without trailing slashes for all routes (helps with preflights)
+    app.url_map.strict_slashes = False
 
     # Ensure database URI is set (dev fallback only). In production, require DATABASE_URL.
     if not app.config.get('SQLALCHEMY_DATABASE_URI') and config is DevConfig:
@@ -106,6 +108,12 @@ def create_app(config=DevConfig):
     def log_request_info():
         app.logger.debug('Headers: %s', request.headers)
         app.logger.debug('Body: %s', request.get_data())
+
+    # Graceful preflight handler for legacy frontend path
+    @app.route('/client/projects', methods=['OPTIONS'])
+    def _client_projects_preflight():
+        # CORS will attach the proper headers; 204 indicates successful preflight
+        return '', 204
 
     @app.errorhandler(Exception)
     def handle_exception(e):

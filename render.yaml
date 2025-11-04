@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: workforce-backend
+    env: python
+    buildCommand: "pip install -r requirements.txt && python migrate.py"
+    startCommand: "gunicorn run:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: workforce-db
+          property: connectionString
+      - key: AUTO_CREATE_TABLES
+        value: true
+      - key: AUTO_PATCH_SCHEMA
+        value: true
+
+databases:
+  - name: workforce-db
+    databaseName: workforce
+    user: workforce
+
