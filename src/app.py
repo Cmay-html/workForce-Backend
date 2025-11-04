@@ -12,15 +12,12 @@ from .routes.invoices import register_routes as register_invoices
 from .routes.receipts import register_routes as register_receipts
 from .routes.payments import register_routes as register_payments
 from .routes.freelancer import register_routes as register_freelancer
-from .routes.projects import api as projects_ns
 from . import models  # ensure models are imported for mapper configuration
 
 
 def create_app(config=DevConfig):
     app = Flask(__name__)
     app.config.from_object(config)
-    # Allow both with and without trailing slashes for all routes (helps with preflights)
-    app.url_map.strict_slashes = False
 
     # Ensure database URI is set (dev fallback only). In production, require DATABASE_URL.
     if not app.config.get('SQLALCHEMY_DATABASE_URI') and config is DevConfig:
@@ -30,21 +27,16 @@ def create_app(config=DevConfig):
 
     # Initialize extensions
     db.init_app(app)
-    # Allow CORS for all API routes and non-API aliases (e.g., /client/*)
-    allowed_origins = [
-        os.getenv("FRONTEND_ORIGIN", ""),
-        "https://6908506926707cce75213659--workforceflows.netlify.app",
-        "https://workforceflows.netlify.app",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8080",
-    ]
-    # Remove empty strings to avoid invalid headers
-    allowed_origins = [o for o in allowed_origins if o]
-
     CORS(app, resources={
-        r"/*": {
-            "origins": allowed_origins,
+        r"/api/*": {
+            "origins": [
+                "https://6909d63f6dacbdf1f8f28ecb--workforceflows.netlify.app",
+                "https://6908506926707cce75213659--workforceflows.netlify.app",
+                "https://workforceflows.netlify.app",
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:8080",
+            ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
             "supports_credentials": True,
@@ -54,28 +46,6 @@ def create_app(config=DevConfig):
     migrate.init_app(app, db)
     api.init_app(app)
     jwt.init_app(app)
-
-    # JWT error handlers for clearer client feedback
-    @jwt.unauthorized_loader
-    def _jwt_unauthorized_callback(err_msg):
-        return {"success": False, "message": f"Unauthorized: {err_msg}"}, 401
-
-    @jwt.invalid_token_loader
-    def _jwt_invalid_token_callback(err_msg):
-        # Common when old tokens have integer sub (subject) and library expects string
-        return {"success": False, "message": f"Invalid token: {err_msg}. Please log in again."}, 401
-
-    @jwt.expired_token_loader
-    def _jwt_expired_token_callback(jwt_header, jwt_payload):
-        return {"success": False, "message": "Token has expired. Please log in again."}, 401
-
-    @jwt.needs_fresh_token_loader
-    def _jwt_needs_fresh_callback(jwt_header, jwt_payload):
-        return {"success": False, "message": "Fresh token required."}, 401
-
-    @jwt.revoked_token_loader
-    def _jwt_revoked_token_callback(jwt_header, jwt_payload):
-        return {"success": False, "message": "Token has been revoked."}, 401
     ma.init_app(app)
     mail.init_app(app)
 
@@ -119,35 +89,20 @@ def create_app(config=DevConfig):
     # Register namespaces
     init_routes()
     api.add_namespace(auth_ns, path='/api/auth')
-    api.add_namespace(projects_ns, path='/api/projects')
     register_applications(api.namespace('applications', description='Application Management', path='/api/applications'))
     register_invoices(api.namespace('invoices', description='Invoice Management', path='/api/invoices'))
     register_receipts(api.namespace('freelancer/payments', description='Freelancer Payment History', path='/api/freelancer/payments'))
     register_payments(api.namespace('client/payments', description='Client Payment Operations', path='/api/client/payments'))
     register_freelancer(api.namespace('freelancer', description='Freelancer Journey', path='/api/freelancer'))
 
+    # Import and register projects namespace
+    from .routes.projects import projects_ns
+    api.add_namespace(projects_ns, path='/api/client/projects')
+
     @app.before_request
     def log_request_info():
         app.logger.debug('Headers: %s', request.headers)
         app.logger.debug('Body: %s', request.get_data())
-
-    # Legacy alias: forward /client/projects to /api/projects
-    @app.route('/client/projects', methods=['GET', 'POST', 'OPTIONS'])
-    def _client_projects_alias():
-        from flask import redirect, url_for
-        if request.method == 'OPTIONS':
-            # Preflight - return 204 with CORS headers
-            return '', 204
-        # Forward GET/POST to the actual projects endpoint
-        # Since Flask-RESTX handles /api/projects, we need to proxy the request
-        from .routes.projects import api as projects_ns
-        # Get the actual resource class for the list endpoint
-        from .routes.projects import ProjectList
-        resource = ProjectList()
-        if request.method == 'GET':
-            return resource.get()
-        elif request.method == 'POST':
-            return resource.post()
 
     @app.errorhandler(Exception)
     def handle_exception(e):
