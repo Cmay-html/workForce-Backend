@@ -126,6 +126,43 @@ class Login(Resource):
             }
         }, HTTPStatus.OK
 
+@auth_ns.route('/admin-login')
+class AdminLogin(Resource):
+    @auth_ns.expect(login_model)
+    @auth_ns.marshal_with(token_response_model)
+    def post(self):
+        """Admin-specific login endpoint"""
+        data = request.get_json()
+        logger.info(f"Admin login attempt for email: {data['email']}")
+
+        user = User.query.filter_by(email=data['email']).first()
+        if not user or not check_password_hash(user.password_hash, data['password']):
+            logger.error(f"Invalid credentials for email: {data['email']}")
+            return {'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
+
+        # Verify user has admin role
+        if user.role != 'admin':
+            logger.error(f"Non-admin user {data['email']} attempted admin login")
+            return {'message': 'Access denied. Admin privileges required.'}, HTTPStatus.FORBIDDEN
+
+        # Update last login
+        user.last_login = datetime.now(timezone.utc)
+        db.session.commit()
+
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
+        logger.info(f"Admin user {user.id} logged in successfully")
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'created_at': user.created_at.isoformat() if getattr(user, 'created_at', None) else None,
+            }
+        }, HTTPStatus.OK
+
 @auth_ns.route('/refresh')
 class RefreshToken(Resource):
     @auth_ns.marshal_with(token_response_model)
