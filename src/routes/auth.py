@@ -69,6 +69,18 @@ class Signup(Resource):
         db.session.add(user)
         db.session.commit()
 
+        # Create ClientProfile for clients
+        if data['role'] == 'client':
+            client_profile = ClientProfile(
+                user_id=user.id,
+                company_name=data.get('company_name', user.email.split('@')[0]),
+                industry=data.get('industry'),
+                created_at=datetime.now(timezone.utc)
+            )
+            db.session.add(client_profile)
+            db.session.commit()
+            logger.info(f"ClientProfile created for user_id: {user.id}")
+
         # Create FreelancerProfile for freelancers
         if data['role'] == 'freelancer':
             freelancer_profile = FreelancerProfile(
