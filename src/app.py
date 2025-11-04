@@ -12,6 +12,7 @@ from .routes.invoices import register_routes as register_invoices
 from .routes.receipts import register_routes as register_receipts
 from .routes.payments import register_routes as register_payments
 from .routes.freelancer import register_routes as register_freelancer
+from .routes.projects import api as projects_ns
 from . import models  # ensure models are imported for mapper configuration
 
 
@@ -27,15 +28,21 @@ def create_app(config=DevConfig):
 
     # Initialize extensions
     db.init_app(app)
+    # Allow CORS for all API routes and non-API aliases (e.g., /client/*)
+    allowed_origins = [
+        os.getenv("FRONTEND_ORIGIN", ""),
+        "https://6908506926707cce75213659--workforceflows.netlify.app",
+        "https://workforceflows.netlify.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+    ]
+    # Remove empty strings to avoid invalid headers
+    allowed_origins = [o for o in allowed_origins if o]
+
     CORS(app, resources={
-        r"/api/*": {
-            "origins": [
-                "https://6908506926707cce75213659--workforceflows.netlify.app",
-                "https://workforceflows.netlify.app",
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "http://localhost:8080",
-            ],
+        r"/*": {
+            "origins": allowed_origins,
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
             "supports_credentials": True,
@@ -88,6 +95,7 @@ def create_app(config=DevConfig):
     # Register namespaces
     init_routes()
     api.add_namespace(auth_ns, path='/api/auth')
+    api.add_namespace(projects_ns, path='/api/projects')
     register_applications(api.namespace('applications', description='Application Management', path='/api/applications'))
     register_invoices(api.namespace('invoices', description='Invoice Management', path='/api/invoices'))
     register_receipts(api.namespace('freelancer/payments', description='Freelancer Payment History', path='/api/freelancer/payments'))
