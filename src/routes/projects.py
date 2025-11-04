@@ -44,7 +44,7 @@ class ProjectList(Resource):
             current_user_id = get_jwt_identity()
 
             # Get current user with role
-            current_user = User.query.get(current_user_id)
+            current_user = User.query.get(int(current_user_id))
             if not current_user:
                 return {
                     'success': False,
@@ -56,13 +56,19 @@ class ProjectList(Resource):
 
             # Role-based project filtering
             if current_user.role == 'client':
-                # Clients see their own projects
-                query = Project.query.filter_by(client_id=current_user_id)
+                # Clients see their own projects - use client_profile.id
+                if not current_user.client_profile:
+                    return {
+                        'success': False,
+                        'message': 'Client profile not found'
+                    }, 400
+                query = Project.query.filter_by(client_id=current_user.client_profile.id)
             elif current_user.role == 'freelancer':
                 # Freelancers see available projects and their assigned projects
+                freelancer_id = current_user.freelancer_profile.id if current_user.freelancer_profile else None
                 query = Project.query.filter(
                     (Project.status.in_(['posted', 'active'])) |
-                    (Project.freelancer_id == current_user_id)
+                    (Project.freelancer_id == freelancer_id)
                 )
             else:  # admin or other roles
                 query = Project.query
@@ -97,8 +103,8 @@ class ProjectList(Resource):
         try:
             current_user_id = get_jwt_identity()
 
-            # Get current user with role
-            current_user = User.query.get(current_user_id)
+            # Get current user with role - cast to int since JWT identity is string
+            current_user = User.query.get(int(current_user_id))
             if not current_user:
                 return {
                     'success': False,
@@ -112,6 +118,13 @@ class ProjectList(Resource):
                     'message': 'Only clients can create projects'
                 }, 403
 
+            # Check that user has a client_profile
+            if not current_user.client_profile:
+                return {
+                    'success': False,
+                    'message': 'Client profile not found. Please contact support.'
+                }, 400
+
             data = request.get_json()
 
             # Validate required fields
@@ -123,11 +136,11 @@ class ProjectList(Resource):
                         'message': f'{field} is required'
                     }, 400
 
-            # Create project
+            # Create project - use client_profile.id instead of user.id
             project = Project(
                 title=data['title'],
                 description=data['description'],
-                client_id=current_user_id,
+                client_id=current_user.client_profile.id,  # FIX: Use client_profile.id
                 budget=data['budget'],
                 status='draft'
             )
@@ -160,20 +173,22 @@ class ProjectResource(Resource):
         """Get a specific project"""
         try:
             current_user_id = get_jwt_identity()
-            current_user = User.query.get(current_user_id)
+            current_user = User.query.get(int(current_user_id))
             project = Project.query.get_or_404(project_id)
 
             # Authorization check based on role
             if current_user.role == 'client':
                 # Clients can only see their own projects
-                if project.client_id != current_user_id:
+                client_profile_id = current_user.client_profile.id if current_user.client_profile else None
+                if project.client_id != client_profile_id:
                     return {
                         'success': False,
                         'message': 'Not authorized to access this project'
                     }, 403
             elif current_user.role == 'freelancer':
                 # Freelancers can see projects they're assigned to or available projects
-                if project.freelancer_id != current_user_id and project.status not in ['posted', 'active']:
+                freelancer_profile_id = current_user.freelancer_profile.id if current_user.freelancer_profile else None
+                if project.freelancer_id != freelancer_profile_id and project.status not in ['posted', 'active']:
                     return {
                         'success': False,
                         'message': 'Not authorized to access this project'
@@ -201,11 +216,12 @@ class ProjectResource(Resource):
         """Update a project"""
         try:
             current_user_id = get_jwt_identity()
-            current_user = User.query.get(current_user_id)
+            current_user = User.query.get(int(current_user_id))
             project = Project.query.get_or_404(project_id)
 
             # Only project client can update projects
-            if current_user.role != 'client' or project.client_id != current_user_id:
+            client_profile_id = current_user.client_profile.id if current_user.client_profile else None
+            if current_user.role != 'client' or project.client_id != client_profile_id:
                 return {
                     'success': False,
                     'message': 'Not authorized to update this project'
@@ -245,13 +261,14 @@ class ProjectApplications(Resource):
         """Get all applications for a project"""
         try:
             current_user_id = get_jwt_identity()
-            current_user = User.query.get(current_user_id)
+            current_user = User.query.get(int(current_user_id))
             project = Project.query.get_or_404(project_id)
 
             # Authorization check
             if current_user.role == 'client':
                 # Only project client can view applications
-                if project.client_id != current_user_id:
+                client_profile_id = current_user.client_profile.id if current_user.client_profile else None
+                if project.client_id != client_profile_id:
                     return {
                         'success': False,
                         'message': 'Not authorized to view applications for this project'
@@ -305,12 +322,13 @@ class ProjectHire(Resource):
         """Hire a freelancer for a project (Client only)"""
         try:
             current_user_id = get_jwt_identity()
-            current_user = User.query.get(current_user_id)
+            current_user = User.query.get(int(current_user_id))
             project = Project.query.get_or_404(project_id)
             data = request.get_json()
 
             # Only project client can hire freelancers
-            if current_user.role != 'client' or project.client_id != current_user_id:
+            client_profile_id = current_user.client_profile.id if current_user.client_profile else None
+            if current_user.role != 'client' or project.client_id != client_profile_id:
                 return {
                     'success': False,
                     'message': 'Not authorized to hire for this project'
