@@ -45,3 +45,10 @@ class ProjectSchema(ma.SQLAlchemyAutoSchema):
                 'hourly_rate': float(obj.freelancer.hourly_rate) if obj.freelancer.hourly_rate else None
             }
         return None
+
+# Convenience serialization methods on Project
+def _project_to_dict(obj):
+    return ProjectSchema().dump(obj)
+
+# Monkey-patch to_dict onto Project class
+Project.to_dict = _project_to_dict
