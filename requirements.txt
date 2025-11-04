@@ -109,3 +109,6 @@ requests
 pytest
 pytest-flask
 pytest-mock
+flask-marshmallow
+
+flask-socketio

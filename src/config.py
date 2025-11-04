@@ -1,0 +1,71 @@
+import os
+import psycopg2
+from dotenv import load_dotenv
+from datetime import timedelta
+from typing import Optional
+
+# Always load the .env that lives alongside this file (src/.env)
+ENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=ENV_PATH, override=False)
+
+
+def normalize_db_url(url: Optional[str]) -> Optional[str]:
+    """Normalize database URL for SQLAlchemy.
+
+    - Convert postgres:// to postgresql+psycopg2:// (older provider style)
+    """
+    if not url:
+        return url
+    if url.startswith('postgres://'):
+        return url.replace('postgres://', 'postgresql+psycopg2://', 1)
+    return url
+
+class Config:
+    # Flask settings
+    SECRET_KEY = os.getenv('SECRET_KEY', 'default-secret-key')  # Added for Flask security
+    FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+
+    # Database settings
+    SQLALCHEMY_DATABASE_URI = normalize_db_url(
+        os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI') or 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb'
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False  # Moved to base Config
+
+    # JWT settings
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'default-jwt-secret-key')
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+
+class DevConfig(Config):
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+    DEBUG = True
+    SQLALCHEMY_DATABASE_URI = normalize_db_url(
+        os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI') or 'postgresql+psycopg2://postgres:postgres@localhost:5432/workdb'
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'bd6f47d5fbe6130531225d993ce47f56')
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+
+    # Email configuration
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@workforce.com')
+
+class ProdConfig(Config):
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    DEBUG = False
+    SQLALCHEMY_DATABASE_URI = normalize_db_url(
+        os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI')
+    )
+    if not SQLALCHEMY_DATABASE_URI:
+        # In production, we should not default to localhost
+        # Let the app handle missing DATABASE_URL gracefully
+        pass
+
+# Map environments to config classes
+config = {
+    'development': DevConfig,
+    'production': ProdConfig
+}

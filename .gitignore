@@ -1,10 +1,36 @@
-.env
+# Python
 __pycache__/
-*.pyc
-.pytest_cache/
-*.log
-.DS_Store
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.log
+
+# Database
+*.db
 *.sqlite
 instance/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/

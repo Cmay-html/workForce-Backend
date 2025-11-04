@@ -1,337 +1,170 @@
-# Workforce Backend
+# WorkForce Backend
 
-A Flask-RESTful backend API for a workforce management platform connecting clients and freelancers. Built with modern Python technologies and PostgreSQL database.
+A Flask-based backend for a freelance marketplace. It provides REST APIs (with Swagger docs) for auth, projects, applications, invoices, payments, and more. The project uses an application-factory pattern and is designed for deployment on services like Render.
 
 ## Features
 
-- **User Authentication**: JWT-based authentication with secure password hashing
-- **Role-Based Access Control**: Multi-user roles (Admin, Client, Freelancer) with specific permissions
-- **Project Management**: Complete project lifecycle from posting to completion
-- **Payment Processing**: Integrated payment system with invoice generation
-- **Messaging System**: Internal messaging between users with moderation
-- **File Management**: Cloudinary integration for image uploads and optimization
-- **Email Integration**: SendGrid for notifications and verification emails
-- **Admin Dashboard**: Analytics and dispute resolution capabilities
-- **Security**: CORS, input validation, and secure credential handling
-- **API Documentation**: Swagger/OpenAPI documentation for all endpoints
+- Flask-RESTX API with interactive docs at `/api/docs`
+- JWT authentication (access tokens) with role-aware endpoints
+- Role-based project visibility and CRUD (client vs freelancer)
+- Applications, invoices, payments, receipts wiring via namespaces
+- CORS configured for local dev and Netlify deployments
+- Database migrations with Flask-Migrate/Alembic
+- Marshmallow serialization
+- Email configuration via Flask-Mail (optional)
 
-## Tech Stack
+> Note: Real-time chat and a freelancer directory are planned; ensure the corresponding modules and Socket.IO setup are present before enabling those imports.
 
-- **Runtime**: Python 3.8+
-- **Framework**: Flask-RESTful (Flask-RESTX)
-- **Database**: PostgreSQL with SQLAlchemy ORM
-- **Authentication**: JWT (Flask-JWT-Extended)
-- **Serialization**: Marshmallow
-- **Security**: Flask-CORS, bcrypt, input sanitization
-- **Email**: SendGrid
-- **File Storage**: Cloudinary
-- **Migration**: Flask-Migrate (Alembic)
-- **Testing**: pytest
+## Tech stack
 
-## Getting Started
+- Python, Flask, Flask-RESTX, Flask-JWT-Extended
+- SQLAlchemy + Flask-SQLAlchemy
+- Alembic/Flask-Migrate
+- Marshmallow / Flask-Marshmallow
+- Flask-Mail (optional)
+- Gunicorn (deployment)
 
-### Prerequisites
-
-- Python 3.8 or higher
-- PostgreSQL database
-- pip (Python package manager)
-
-### Installation
-
-1. Clone the repository:
-    ```bash
-    git clone <repository-url>
-    cd workforce-backend
-    ```
-
-2. Create a virtual environment:
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    ```
-
-3. Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4. Set up environment variables:
-    Create a `.env` file in the root directory with the following variables:
-    ```env
-    SECRET_KEY=your-secret-key-here
-    JWT_SECRET_KEY=your-jwt-secret-key-here
-    DATABASE_URI=postgresql+psycopg2://username:password@localhost:5432/workforce_db
-    SENDGRID_API_KEY=your-sendgrid-api-key
-    CLOUDINARY_URL=cloudinary://api_key:api_secret@cloud_name
-    FLASK_ENV=development
-    ```
-
-5. Set up the database:
-    ```bash
-    # Create PostgreSQL database
-    createdb workforce_db
-
-    # Run migrations
-    flask db upgrade
-    ```
-
-6. Seed the database (optional):
-    ```bash
-    python seed.py
-    ```
-
-7. Start the development server:
-    ```bash
-    python run.py
-    ```
-
-The API will be available at `http://localhost:5000` with Swagger documentation at `http://localhost:5000/swaggerui`.
-
-## API Endpoints
-
-### Authentication (`/api/auth`)
-- `POST /auth/login` - User login with JWT token generation
-- `POST /auth/signup` - User registration (not implemented in routes)
-
-### Admin Operations (`/api/admin`)
-- `GET /admin/users` - List all users with pagination
-- `POST /admin/users` - Create new user
-- `GET /admin/users/<id>` - Get user by ID
-- `DELETE /admin/users/<id>` - Delete user
-- `GET /admin/disputes` - List all disputes
-- `PUT /admin/disputes/<id>/resolve` - Resolve dispute
-- `GET /admin/analytics` - Get system analytics
-
-### Applications (`/api/applications`)
-- `GET /applications` - List project applications (freelancer)
-- `POST /applications` - Create new application
-- `GET /applications/<id>` - Get application details
-- `PUT /applications/<id>` - Update application
-- `DELETE /applications/<id>` - Delete application
-
-### Projects (`/api/projects`)
-- `GET /projects` - List projects based on user role
-- `POST /projects` - Create new project (client only)
-- `GET /projects/<id>` - Get project details
-- `PUT /projects/<id>` - Update project
-- `GET /projects/<id>/applications` - Get project applications
-- `POST /projects/<id>/hire` - Hire freelancer for project
-
-### Payments (`/api/client/payments`, `/api/freelancer/payments`)
-- `GET /client/payments` - List client payments
-- `POST /client/payments/initiate` - Initiate payment
-- `GET /client/payments/verify/<tx_ref>` - Verify payment
-- `GET /freelancer/payments` - List freelancer receipts
-
-### Invoices (`/api/invoices`)
-- `GET /invoices` - List invoices
-- `POST /invoices` - Create invoice
-- `GET /invoices/<id>` - Get invoice details
-- `PUT /invoices/<id>` - Update invoice
-- `DELETE /invoices/<id>` - Delete invoice
-- `GET /invoices/calculate/<job_id>` - Calculate invoice amount
-
-### Reviews (`/api/reviews`)
-- `GET /reviews` - List reviews based on user role
-- `POST /reviews` - Create review
-- `GET /reviews/<id>` - Get review details
-- `PUT /reviews/<id>` - Update review
-- `DELETE /reviews/<id>` - Delete review
-- `GET /reviews/freelancer/<id>` - Get freelancer reviews
-
-### Freelancer Operations (`/api/freelancer`)
-- `GET /freelancer/profile` - Get freelancer profile
-- `PUT /freelancer/profile` - Update freelancer profile
-- `GET /freelancer/projects` - List freelancer projects
-- `GET /freelancer/applications` - List freelancer applications
-- `POST /freelancer/projects/<id>/apply` - Apply to project
-
-### Milestones (`/api/milestones`)
-- `GET /milestones` - List milestones
-- `POST /milestones` - Create milestone
-- `GET /milestones/<id>` - Get milestone details
-- `PUT /milestones/<id>` - Update milestone
-- `DELETE /milestones/<id>` - Delete milestone
-- `PUT /milestones/<id>/approve` - Approve milestone
-- `PUT /milestones/<id>/reject` - Reject milestone
-- `GET /milestones/project/<id>` - Get project milestones
-
-### Time Entries (`/api/time-entries`)
-- `GET /time-entries` - List time entries
-- `POST /time-entries` - Create time entry
-- `GET /time-entries/<id>` - Get time entry details
-- `PUT /time-entries/<id>` - Update time entry
-- `DELETE /time-entries/<id>` - Delete time entry
-
-### Deliverables (`/api/deliverables`)
-- `GET /deliverables` - List deliverables
-- `POST /deliverables` - Create deliverable
-- `GET /deliverables/<id>` - Get deliverable details
-- `PUT /deliverables/<id>` - Update deliverable
-- `DELETE /deliverables/<id>` - Delete deliverable
-- `POST /deliverables/upload` - Upload deliverable file
-
-## User Roles
-
-- **admin**: Full system access including user management, dispute resolution, and analytics
-- **client**: Can post projects, hire freelancers, manage payments, and leave reviews
-- **freelancer**: Can apply to projects, submit deliverables, track time, and manage profile
-
-## Development
-
-### Scripts
-
-- `python run.py` - Start the Flask development server
-- `python -m pytest` - Run test suite
-- `flask db upgrade` - Run database migrations
-- `python seed.py` - Seed database with sample data
-
-### Project Structure
+## Project layout
 
 ```
-workforce-backend/
-├── app.py              # Main Flask application
-├── config.py           # Configuration settings
-├── auth.py             # Authentication utilities
-├── extensions.py       # Flask extensions initialization
-├── utils.py            # Utility functions
-├── models/             # SQLAlchemy models
-│   ├── __init__.py
-│   ├── user.py
-│   ├── project.py
-│   ├── payment.py
-│   ├── invoice.py
-│   ├── milestone.py
-│   ├── deliverable.py
-│   ├── review.py
-│   ├── message.py
-│   ├── time_log.py
-│   ├── skill.py
-│   ├── dispute.py
-│   └── policy.py
-├── routes/             # API route handlers
-│   ├── __init__.py
-│   ├── routes.py       # Admin and auth routes
-│   ├── auth.py
-│   ├── applications.py
-│   ├── projects.py
-│   ├── payments.py
-│   ├── payment.py
-│   ├── invoices.py
-│   ├── reviews.py
-│   ├── freelancer.py
-│   ├── milestone.py
-│   ├── time-entries.py
-│   ├── deliverables.py
-│   └── receipts.py
-├── migrations/         # Database migrations
-├── test_*.py           # Test files
-├── requirements.txt    # Python dependencies
-├── Pipfile             # Alternative dependency management
-├── pytest.ini          # Test configuration
-├── seed.py             # Database seeding script
-├── run.py              # Development server runner
-├── .env                # Environment variables
-├── .gitignore
-└── README.md
+run.py                  # WSGI entry (imports src.app with ProdConfig)
+src/
+  app.py                # Application factory + route registration
+  config.py             # Dev/Prod configuration and env handling
+  extensions.py         # db, migrate, jwt, ma, mail, api instances
+  routes/               # Namespaces and route registration
+migrations/             # Alembic migration scaffolding
+requirements.txt        # Python dependencies
 ```
 
-## Security Features
+## Getting started
 
-- JWT token authentication with configurable expiration
-- Password hashing using Werkzeug security
-- Role-based access control with decorators
-- CORS configuration for cross-origin requests
-- Input validation through Flask-RESTX models
-- SQL injection prevention via SQLAlchemy ORM
-- Secure handling of sensitive environment variables
+### 1) Clone and set up a virtual environment
 
-## Database Design
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-The application uses PostgreSQL with the following key relationships:
+### 2) Configure environment variables
 
-- **Users** have one-to-one relationships with **ClientProfiles** or **FreelancerProfiles**
-- **Projects** belong to **Clients** and can be assigned to **Freelancers**
-- **Projects** have multiple **Milestones** and **Applications**
-- **Payments** are linked to **Invoices** and **Projects**
-- **Reviews** connect **Clients** with **Freelancers**
-- **TimeLogs** track work on **Projects**
-- **Deliverables** are submitted for **Milestones**
+The app loads environment variables from `src/.env` (if present) and the system environment. Recommended variables:
 
-All models follow 2NF normalization principles with proper foreign key relationships.
+- SECRET_KEY
+- FLASK_ENV=development
+- DATABASE_URL=postgresql+psycopg2://<user>:<pass>@<host>:<port>/<db>
+- JWT_SECRET_KEY
+- MAIL_SERVER=smtp.gmail.com
+- MAIL_PORT=587
+- MAIL_USE_TLS=True
+- MAIL_USERNAME=<email>
+- MAIL_PASSWORD=<app_password>
+- MAIL_DEFAULT_SENDER=noreply@workforce.com
+
+Create a `src/.env` file to simplify local dev, e.g.:
+
+```
+FLASK_ENV=development
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/workdb
+JWT_SECRET_KEY=change-me
+SECRET_KEY=change-me-too
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_DEFAULT_SENDER=noreply@workforce.com
+```
+
+### 3) Initialize the database
+
+Make sure your Postgres database exists and is reachable via `DATABASE_URL`, then run migrations:
+
+```bash
+# If your environment is active (venv) and FLASK_APP points to the factory
+export FLASK_APP=src.app:create_app
+flask db upgrade
+```
+
+- To create a new migration after model changes:
+
+```bash
+flask db migrate -m "Describe your change"
+flask db upgrade
+```
+
+### 4) Run the server (local)
+
+Use the Flask CLI (dev-friendly):
+
+```bash
+export FLASK_APP=src.app:create_app
+flask run --debug
+```
+
+Alternatively, run the WSGI entrypoint:
+
+```bash
+python run.py
+```
+
+This starts the API, with Swagger docs at:
+
+- http://localhost:5000/api/docs
+
+### 5) Auth usage
+
+- Obtain a JWT via the auth endpoints (see `/api/docs`).
+- Send it as an Authorization header: `Authorization: Bearer <token>`.
+
+## Key endpoints (high level)
+
+Namespace registration happens in `src/app.py` and routes live under `src/routes/`.
+
+- Auth: `POST /api/auth/signup`, `POST /api/auth/login`
+- Projects: `GET /api/projects/` (role-aware), `POST /api/projects/` (client), and additional visibility endpoints if present
+- Applications: under `/api/applications`
+- Invoices: under `/api/invoices`
+- Payments/Receipts: under their respective namespaces
+
+Use `/api/docs` for the canonical contract and try-it-out.
+
+## Configuration details
+
+From `src/config.py`:
+
+- Uses `DATABASE_URL` (normalized to `postgresql+psycopg2://`)
+- `JWT_SECRET_KEY` with 24-hour access tokens by default
+- Dev and Prod classes (Dev enables DEBUG)
+- Optional mail settings
 
 ## Deployment
 
-### Environment Variables for Production
+- WSGI: `gunicorn run:app` (uses `ProdConfig` via `run.py`)
+- Ensure `DATABASE_URL`, `SECRET_KEY`, and `JWT_SECRET_KEY` are set in the environment
+- If enabling real-time chat, you may need an async worker (e.g., eventlet) and a Socket.IO server setup
 
-```env
-SECRET_KEY=your-production-secret-key
-JWT_SECRET_KEY=your-production-jwt-secret
-DATABASE_URI=postgresql+psycopg2://user:password@host:port/database
-SENDGRID_API_KEY=your-sendgrid-api-key
-CLOUDINARY_URL=cloudinary://api_key:api_secret@cloud_name
-FLASK_ENV=production
-```
+## CORS
 
-### Docker Deployment
+`src/app.py` configures CORS for local development (`http://localhost:5173`, `http://localhost:3000`, etc.) and Netlify-origin URLs. Update the allowed origins list as needed.
 
-```dockerfile
-FROM python:3.9-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-EXPOSE 5000
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "run:app"]
-```
+## Troubleshooting
 
-### Render/Heroku Deployment
+- 401 with JWT: tokens may be expired or malformed—re-login and ensure `Authorization: Bearer <token>` header
+- DB connection errors: verify `DATABASE_URL` and that Postgres is reachable
+- Migrations: if you change models, create and apply a new migration
+- Missing modules (chat/freelancers_list): if you see import errors for `src/routes/chat.py` or `src/routes/freelancers_list.py`, create those modules or remove their imports in `src/app.py`
+- Socket.IO: if enabled, make sure the socket instance is created in `src/extensions.py` and initialized in `src/app.py`
 
-1. Set environment variables in hosting platform
-2. Use PostgreSQL add-on for database
-3. Configure build command: `pip install -r requirements.txt`
-4. Configure start command: `gunicorn run:app`
+## Contributors
 
-## Testing
-
-Run the test suite using pytest:
-
-```bash
-# Run all tests
-python -m pytest
-
-# Run with coverage
-python -m pytest --cov=.
-
-# Run specific test file
-python -m pytest test_models.py
-```
-
-## API Documentation
-
-The API is fully documented using Swagger/OpenAPI. When running the development server, visit:
-- Swagger UI: `http://localhost:5000/swaggerui`
-- OpenAPI JSON: `http://localhost:5000/swagger.json`
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass (`python -m pytest`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
-## Code Quality
-
-This project follows these coding standards:
-- **Linting**: Use Flake8 for Python code quality
-- **Formatting**: Follow PEP 8 style guidelines
-- **Testing**: Maintain test coverage above 80%
-- **Documentation**: Document all public APIs and complex logic
+- David Chumo
+- Cynthia Mrikan
+- Joshua Karanja
+- James Kamau
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License. See `LICENSE` for details.

@@ -1,7 +1,8 @@
+# models/user.py
 from extensions import db, ma
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -10,53 +11,17 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     is_verified = db.Column(db.Boolean, default=False)
-    verification_token = db.Column(db.String(255), nullable=True)
-    token_expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
 
-    # One-to-one relationships to profiles
-    client_profile = db.relationship(
-        'ClientProfile', uselist=False, back_populates='user', cascade='all, delete-orphan')
-    freelancer_profile = db.relationship(
-        'FreelancerProfile', uselist=False, back_populates='user', cascade='all, delete-orphan')
-
-    def set_password(self, password: str):
+    def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password: str) -> bool:
+    def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
     def generate_token(self):
         return create_access_token(identity=self.id)
-
-    def generate_verification_token(self):
-        """Generate a secure verification token"""
-        import secrets
-        self.verification_token = secrets.token_urlsafe(32)
-        self.token_expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
-        return self.verification_token
-
-    def verify_email_token(self, token):
-        """Verify the email verification token"""
-        if (self.verification_token == token and
-            self.token_expires_at and
-            datetime.now(timezone.utc) < self.token_expires_at):
-            self.is_verified = True
-            self.verification_token = None
-            self.token_expires_at = None
-            return True
-        return False
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'email': self.email,
-            'role': self.role,
-            'is_verified': self.is_verified,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-        }
 
 class ClientProfile(db.Model):
     __tablename__ = 'client_profiles'
@@ -70,23 +35,6 @@ class ClientProfile(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    user = db.relationship('User', back_populates='client_profile')
-
-    # payments = db.relationship("Payment", backref="client")
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'company_name': self.company_name,
-            'industry': self.industry,
-            'bio': self.bio,
-            'website': self.website,
-            'profile_picture_uri': self.profile_picture_uri,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
-
 class FreelancerProfile(db.Model):
     __tablename__ = 'freelancer_profiles'
     id = db.Column(db.Integer, primary_key=True)
@@ -98,41 +46,23 @@ class FreelancerProfile(db.Model):
     profile_picture_uri = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    skills = db.relationship('Skill', secondary='freelancer_skills', backref='freelancers')
 
-    user = db.relationship('User', back_populates='freelancer_profile')
-    # many-to-many with skills will be defined in skill models
-    # payments = db.relationship("Payment", backref="freelancer")
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'hourly_rate': float(self.hourly_rate) if self.hourly_rate is not None else None,
-            'bio': self.bio,
-            'experience': self.experience,
-            'portfolio_links': self.portfolio_links,
-            'profile_picture_uri': self.profile_picture_uri,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
-
+# Corrected Schemas
 class UserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = User
         load_instance = True
-        include_relationships = True
-        include_fk = True
+        fields = ("id", "email", "role")
 
 class ClientProfileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = ClientProfile
         load_instance = True
-        include_relationships = False
-        include_fk = True
 
 class FreelancerProfileSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = FreelancerProfile
         load_instance = True
-        include_relationships = False
-        include_fk = True
