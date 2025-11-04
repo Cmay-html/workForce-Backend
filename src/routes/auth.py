@@ -391,3 +391,25 @@ class CreateAdmin(Resource):
                 'created_at': admin.created_at.isoformat()
             }
         }, HTTPStatus.CREATED
+
+# --- Client Profile Utilities ---
+from ..models import ClientProfile
+
+@auth_ns.route('/profile/client')
+class CreateClientProfile(Resource):
+    @jwt_required()
+    def post(self):
+        """Create a ClientProfile for the current user if it doesn't exist."""
+        user_id = get_jwt_identity()
+        user = User.query.get(int(user_id))
+        if not user:
+            return {'success': False, 'message': 'User not found'}, HTTPStatus.NOT_FOUND
+        if user.role != 'client':
+            return {'success': False, 'message': 'Only clients can have client profiles'}, HTTPStatus.FORBIDDEN
+        existing = ClientProfile.query.filter_by(user_id=user.id).first()
+        if existing:
+            return {'success': True, 'message': 'Client profile already exists', 'profile_id': existing.id}, HTTPStatus.OK
+        profile = ClientProfile(user_id=user.id, company_name=user.email.split('@')[0], created_at=datetime.now(timezone.utc))
+        db.session.add(profile)
+        db.session.commit()
+        return {'success': True, 'message': 'Client profile created', 'profile_id': profile.id}, HTTPStatus.CREATED
