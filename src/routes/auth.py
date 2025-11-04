@@ -2,7 +2,7 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from ..extensions import db
-from ..models import User, FreelancerProfile
+from ..models import User, FreelancerProfile, ClientProfile
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from http import HTTPStatus
@@ -51,13 +51,13 @@ class Signup(Resource):
         # Validate email uniqueness
         if User.query.filter_by(email=data['email']).first():
             logger.error(f"Email {data['email']} already exists")
-            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+            return {'success': False, 'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
 
         # Validate role
         # if not is_valid_role(data['role']):  # Commented out as validator doesn't exist
         if data['role'] not in ['freelancer', 'client']:
             logger.error(f"Invalid role: {data['role']}")
-            return {'message': 'Invalid role. Must be freelancer or client'}, HTTPStatus.BAD_REQUEST
+            return {'success': False, 'message': 'Invalid role. Must be freelancer or client'}, HTTPStatus.BAD_REQUEST
 
         # Create new user
         user = User(
@@ -84,6 +84,7 @@ class Signup(Resource):
         refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} signed up successfully")
         return {
+            'success': True,
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user': {
@@ -105,14 +106,14 @@ class Login(Resource):
         # Validate required fields
         if not data or 'email' not in data or 'password' not in data:
             logger.error("Missing email or password in login request")
-            return {'message': 'Email and password are required'}, HTTPStatus.BAD_REQUEST
+            return {'success': False, 'message': 'Email and password are required'}, HTTPStatus.BAD_REQUEST
         
         logger.info(f"Login attempt for email: {data['email']}")
 
         user = User.query.filter_by(email=data['email']).first()
         if not user or not check_password_hash(user.password_hash, data['password']):
             logger.error(f"Invalid credentials for email: {data['email']}")
-            return {'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
+            return {'success': False, 'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
 
         # Update last login
         user.last_login = datetime.now(timezone.utc)
@@ -122,6 +123,7 @@ class Login(Resource):
         refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"User {user.id} logged in successfully")
         return {
+            'success': True,
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user': {
@@ -143,14 +145,14 @@ class AdminLogin(Resource):
         # Validate required fields
         if not data or 'email' not in data or 'password' not in data:
             logger.error("Missing email or password in admin login request")
-            return {'message': 'Email and password are required'}, HTTPStatus.BAD_REQUEST
+            return {'success': False, 'message': 'Email and password are required'}, HTTPStatus.BAD_REQUEST
         
         logger.info(f"Admin login attempt for email: {data['email']}")
 
         user = User.query.filter_by(email=data['email']).first()
         if not user or not check_password_hash(user.password_hash, data['password']):
             logger.error(f"Invalid credentials for email: {data['email']}")
-            return {'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
+            return {'success': False, 'message': 'Invalid email or password'}, HTTPStatus.UNAUTHORIZED
 
         # Verify user has admin role
         if user.role != 'admin':
@@ -165,6 +167,7 @@ class AdminLogin(Resource):
         refresh_token = create_refresh_token(identity=str(user.id))
         logger.info(f"Admin user {user.id} logged in successfully")
         return {
+            'success': True,
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user': {
@@ -203,7 +206,7 @@ class RegisterClient(Resource):
         # Validate email uniqueness
         if User.query.filter_by(email=data['email']).first():
             logger.error(f"Email {data['email']} already exists")
-            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+            return {'success': False, 'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
 
         # Create new client user
         user = User(
@@ -232,6 +235,7 @@ class RegisterClient(Resource):
         logger.info(f"Client {user.id} registered successfully")
         # Also return minimal user payload to allow frontend redirect by role
         return {
+            'success': True,
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user': {
@@ -260,7 +264,7 @@ class RegisterFreelancer(Resource):
         # Validate email uniqueness
         if User.query.filter_by(email=data['email']).first():
             logger.error(f"Email {data['email']} already exists")
-            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+            return {'success': False, 'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
 
         # Create new freelancer user
         user = User(
@@ -300,6 +304,7 @@ class RegisterFreelancer(Resource):
         logger.info(f"Freelancer {user.id} registered successfully")
         # Also return minimal user payload to allow frontend redirect by role
         return {
+            'success': True,
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user': {
@@ -362,7 +367,7 @@ class CreateAdmin(Resource):
         # Check if admin already exists
         if User.query.filter_by(email=data['email']).first():
             logger.error(f"Email {data['email']} already exists")
-            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+            return {'success': False, 'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
         
         # Create admin user
         admin = User(
@@ -382,6 +387,7 @@ class CreateAdmin(Resource):
         refresh_token = create_refresh_token(identity=str(admin.id))
         
         return {
+            'success': True,
             'access_token': access_token,
             'refresh_token': refresh_token,
             'user': {
