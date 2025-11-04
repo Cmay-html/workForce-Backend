@@ -158,6 +158,13 @@ From `src/config.py`:
 - Missing modules (chat/freelancers_list): if you see import errors for `src/routes/chat.py` or `src/routes/freelancers_list.py`, create those modules or remove their imports in `src/app.py`
 - Socket.IO: if enabled, make sure the socket instance is created in `src/extensions.py` and initialized in `src/app.py`
 
+## Contributors
+
+- David Chumo
+- Cynthia Mrikan
+- Joshua Karanja
+- James Kamau
+
 ## License
 
 This project is licensed under the MIT License. See `LICENSE` for details.
